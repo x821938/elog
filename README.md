@@ -1,0 +1,114 @@
+# Ultimate ESP logger (Elog)
+## Main features:
+This library was created to do easy an super efficient logging from your Arduino ESP32 programs. It uses a ringbuffer to handle logging extremely fast. This means that you can leave the log statements in your code with pretty much no performance impact!
+- Log to any Serial (0, 1, 2 or soft serial)
+- Log to SD-card
+- Multiple log output
+- SD-card hotplug. You can just eject it and reinsert it. Logging will continue.
+- Very fast logging with no busy waiting!
+- Buffered output to both serial or SD-card
+- Timing helpers to measure performance of your code
+
+## Description
+
+You can log to any serial device or any file on a SD-card. It can handle multiple outputs very easily.
+This library supports HOTPLUGGING the SD-card. Filesystem is flushed every 5 seconds, so you will maximum loose 5 sec of data if you eject the card.
+
+A log statement that is filtered out and never sent to a log device takes about 1-2 microseconds! A typical log statement with 40 chars takes about 10 microseconds. All this is possible because of the buffering. If you have time sensitive applications you can still log without affecting the timings much!
+
+You can create different log instances for different places in your code. Each instance can be configured with different output and target log levels.
+
+## Log levels
+Logging can be logged at different levels.
+
+- EMERGENCY
+- ALERT
+- CRITICAL
+- ERROR
+- WARNING
+- NOTICE
+- INFO
+- DEBUG
+
+ The lowest level is EMERGENCY and the highest is DEBUG.
+ Every time you log something you give it a loglevel.
+
+ When you create your log instance and set your outputs you also set the target log level. Everything logged with lower or equal level than the target level will be outputted.
+
+ ## Basic usage
+ First you need to create an instance of your logger:
+ ```
+ #include <ELog.h>
+Elog mylog;
+ ```
+Then you need to specify where the output of the logging should go and what our target loglevel is. We also give it a servicename. That is a label that is attached to each log message.
+ ```
+mylog.addSerialLogging(Serial, "Main", DEBUG);
+ ```
+Now you can do some logging in your application:
+```
+myLog.log(INFO, "Hello! Variable x is %d", x); 
+```
+Here your can use the normal printf format for your messages. (eg: %d %s %f)
+
+## File logging
+If you want to log to SD-card you need a litle more bootstrapping.
+```
+SPIClass spi = SPIClass(VSPI); // Prepare the spi bus for talking to card reader
+Elog myLog; // Create a log instance
+
+void setup()
+{
+    spi.begin(18, 19, 17, 5); // Set your pins of your card reader here.
+    Elog::configureFilesystem(spi, 5, 2000000); // Speed set to 2mhz. Should be ok with dupont wires.
+    myLog.addFileLogging("File1", DEBUG);
+
+    myLog.log(INFO, "Hello! Variable x is %d", x); 
+}
+```
+Each time the ESP is restarted a new folder is created in the root of the SD-card. It will be in format LOG00001 and will be incremented at each restart. All files created by all your log instances will be placed under this folder. The filenames are defined when you run addFileLogging().
+## Configuration
+If you dont like the default settings you can run this static method in the beginning of the code. It must be called before adding serial or file logging to your instance.
+```
+Elog::globalSettings(100, 150, &Serial, DEBUG);
+```
+The parameters are in this order:
+
+- **maxLogMessageSize** = Maximum characters of the logmesage (default 250)
+- **maxLogMessages** = Size of the buffer. How many messages to hold. (default 20)
+- **internalLogDevice** = When this library output internal messages, where should it go (default &Serial)
+- **internalLogLevel** = Internal messages from this library is only shown equal to or below this level (default WARNING)
+- **discardMsgWhenBufferFull** = If true all messages will be discarded if the buffer is full. If your application is time sensitive you might want to do this (default false)
+- **sdReconnectEvery** = If a SD-card is ejected, how often should we look for the reinsertion (default 5000 ms)
+- **sdSyncFilesEvery** = How often to flush the write cache for the filesystem (default 5000 ms)
+- **sdTryCreateFileEvery** = If we could not create a file, how long time to wait for next try (default 5000 ms)
+- **sdReportBufferStatusEvery** = Regularly an internal buffer status is show every (default 5000 ms)
+
+Remember memoryusage is maxLogMessageSize x maxLogMessages! Dont reserve more than needed
+
+# Timer helpers (Etimer)
+Somtimes you need to check how fast your code is. This library comes with a timer class for doing this.
+Again the focus is on speed. Starting, lapsing or stopping the timer takes less than 1 microsecond! 
+Here is a small example to get you started. Look in the examples folder for more information.
+
+```
+#include <ELog.h>
+#include <Etimer.h>
+
+Elog elog;
+Etimer timer("Timer1", elog, 20); // 20 lapses max on this timer
+
+void setup()
+{
+    Serial.begin(115200);
+    elog.addSerialLogging(Serial, "Main", INFO);
+
+    timer.start();
+    for (uint8_t lap = 1; lap <= 20; lap++) {
+        timer.lap();
+        elog.log(INFO, "Lap number = %d", lap);
+        delay(15);
+    }
+    timer.show(); 
+}
+```

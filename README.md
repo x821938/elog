@@ -9,6 +9,16 @@ This library was created to do easy an super efficient logging from your Arduino
 - Buffered output to both serial or SD-card
 - Timing helpers to measure performance of your code
 
+ ### Log output example:
+```
+000:00:09:41:536 [MAI] [INFO ] : ECEF: X=350075848.43, Y=52893867.26, Z=528754469.13, Accuracy=8667.2
+000:00:09:41:538 [MAI] [INFO ] : HP Lat: 56.32148122, Lon: 8.39157915, Height: 78.7636, HeightMSL: 35.2965, vAcc: 7314.9, hAcc: 4649.0
+000:00:09:41:547 [UBX] [NOTIC] : Survey-in. Active=0, Valid=0, Duration=0s, Accuracy=0, MeanX=0, MeanY=0, MeanZ=0
+000:00:09:41:572 [UBX] [INFO ] : Feeding RTCM frame ID=1005, length=25 to GPS
+000:00:09:41:577 [UBX] [INFO ] : Feeding RTCM frame ID=1074, length=129 to GPS
+000:00:09:42:467 [LOG] [DEBUG] : Msg buffered = 23482, SD written = 23482, discarded = 0, Max Buffer usage = 31%
+000:00:09:42:538 [LOG] [DEBUG] : Syncronizing all logfiles. Writing dirty cache
+ ```
 ## Description
 
 You can log to any serial device or any file on a SD-card. It can handle multiple outputs very easily.

@@ -25,13 +25,13 @@ enum Loglevel {
 };
 
 // Options that can be used for addFileLogging.
-enum FileOptions {
+enum LogFileOptions {
     FILE_NO_OPTIONS = 0,
     FILE_NO_STAMP = 1,
 };
 
 /* All user provided settings of the loginstance is stored in this structure */
-struct Service {
+struct LogService {
     Stream* serialPortPtr; // Pointer to the serial port where log messages should be sent to
     char* serialServiceName; // The servicename that is stamped on each log message
     Loglevel serialWantedLoglevel; // Target loglevel. Everything below or equal to this level is logged
@@ -39,7 +39,7 @@ struct Service {
 
     const char* fileName; // Filename of the logfile on sd-card (it will be inside LOGXXXXX dir)
     Loglevel fileWantedLoglevel; // Target loglevel. Everything below or equal to this level is logged
-    FileOptions fileOptions; // Options about timestamps inside the logfile
+    LogFileOptions fileOptions; // Options about timestamps inside the logfile
     bool fileEnabled; // File logging is enabled
     int32_t fileCreteLastTry; // Keep track of when we last time tried to create the logfile
 
@@ -49,7 +49,7 @@ struct Service {
 };
 
 /* All global settings for this lib is store in this structure */
-struct Settings {
+struct LogSettings {
     uint16_t maxLogMessageSize;
     uint16_t maxLogMessages;
 
@@ -70,12 +70,12 @@ struct LogLineEntry {
     bool logSerial; // Do we want logging to serial on this handle?
     Loglevel loglevel; // Loglevel
     uint32_t logTime; // Time in milliseconds the log message was created
-    Service* service;
+    LogService* service;
     bool internalLogMessage; // If true, this is sent to internal log device
 };
 
 /* Structure to store status about how the messages are sent or discarded */
-struct LoggerStatus {
+struct LogStatus {
     uint32_t messagesBuffered;
     uint32_t messagesWritten;
     uint32_t messagesDiscarded;
@@ -115,11 +115,11 @@ class Elog {
 private:
     static std::vector<Elog*> loggerInstances; // for traversing logger instances from static methods
 
-    Service service; // All instance info about file, serial, loglevel is stored here
+    LogService service; // All instance info about file, serial, loglevel is stored here
 
     static LogRingBuff logRingBuff;
-    static Settings settings; // Global settings for this library
-    static LoggerStatus loggerStatus; // Status for logging
+    static LogSettings settings; // Global settings for this library
+    static LogStatus loggerStatus; // Status for logging
 
     static void writerTask(void* parameter);
     static void outputSerial(const LogLineEntry& logLineEntry, const char* logLineMessage);
@@ -147,7 +147,7 @@ private:
     static bool fileSystemConfigured;
 
     static SPIClass spi;
-    static void createLogFileIfClosed(Service* service);
+    static void createLogFileIfClosed(LogService* service);
     static void reconnectSd();
     static void closeAllFiles();
     static void syncAllFiles();
@@ -179,7 +179,7 @@ public:
 
 #ifndef LOGGER_DISABLE_SD
     static void configureFilesystem(SPIClass& spi, uint8_t cs, uint32_t speed = 4000000);
-    void addFileLogging(const char* fileName, const Loglevel wantedLogLevel, const FileOptions options = FILE_NO_OPTIONS);
+    void addFileLogging(const char* fileName, const Loglevel wantedLogLevel, const LogFileOptions options = FILE_NO_OPTIONS);
 #endif
 };
 

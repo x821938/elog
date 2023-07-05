@@ -7,8 +7,8 @@
 
 // Init static vars
 std::vector<Elog*> Elog::loggerInstances;
-Settings Elog::settings;
-LoggerStatus Elog::loggerStatus = { 0, 0, 0 };
+LogSettings Elog::settings;
+LogStatus Elog::loggerStatus = { 0, 0, 0 };
 LogRingBuff Elog::logRingBuff;
 
 #ifndef LOGGER_DISABLE_SD
@@ -33,7 +33,7 @@ void Elog::outputFile(LogLineEntry& logLineEntry, char* logLineMessage)
 
     if (fileSystemConfigured) {
         if (sdCardPresent) {
-            Service* svc = logLineEntry.service;
+            LogService* svc = logLineEntry.service;
 
             if (svc->fileOptions == FILE_NO_STAMP) {
                 logStamp[0] = 0;
@@ -141,7 +141,7 @@ void Elog::configureFilesystem(SPIClass& _spi, uint8_t _cs, uint32_t _speed)
     wantedLogLevel: Everything equal or lower than this loglevel will be logged
     FileOptions: Can be used to change output format written to the logfile
 */
-void Elog::addFileLogging(const char* fileName, const Loglevel wantedLogLevel, const FileOptions options)
+void Elog::addFileLogging(const char* fileName, const Loglevel wantedLogLevel, const LogFileOptions options)
 {
     writerTaskStart(); // Make sure that the writerTask is running
     if (fileSystemConfigured) {
@@ -163,7 +163,7 @@ void Elog::addFileLogging(const char* fileName, const Loglevel wantedLogLevel, c
 /*  Tries to create a logfile in our logdirectory. If it fails, the next time we will try again is after
     SD_FILE_TRY_CREATE_EVERY milliseconds.
 */
-void Elog::createLogFileIfClosed(Service* svc)
+void Elog::createLogFileIfClosed(LogService* svc)
 {
     if (!svc->fileHandle) { // Only do something if we dont have a valid filehandle
         if (millis() - svc->fileCreteLastTry > settings.sdReconnectEvery) {
@@ -253,7 +253,7 @@ void Elog::closeAllFiles()
 {
     logInternal(INFO, "Resetting all logfiles");
     for (auto loggerInstance : loggerInstances) {
-        Service* service = &loggerInstance->service;
+        LogService* service = &loggerInstance->service;
         if (service->fileEnabled) {
             service->fileHandle.close();
             service->fileCreteLastTry = LONG_MIN; // This triggers log file creation immediately
@@ -271,7 +271,7 @@ void Elog::syncAllFiles()
     if (millis() - lastSynced > settings.sdSyncFilesEvery) {
         logInternal(DEBUG, "Syncronizing all logfiles. Writing dirty cache");
         for (auto loggerInstance : loggerInstances) {
-            Service* service = &loggerInstance->service;
+            LogService* service = &loggerInstance->service;
             if (service->fileEnabled && service->fileHandle) {
                 service->fileHandle.sync();
             }
@@ -400,7 +400,7 @@ void Elog::outputSerial(const LogLineEntry& logLineEntry, const char* logLineMes
         serviceName = "LOG";
         serialPtr = settings.internalLogDevice;
     } else {
-        Service* service = logLineEntry.service;
+        LogService* service = logLineEntry.service;
         serviceName = service->serialServiceName;
         serialPtr = service->serialPortPtr;
     }

@@ -164,7 +164,7 @@ public:
 
     static void globalSettings(uint16_t maxLogMessageSize = 250,
         uint16_t maxLogMessages = 20,
-        Stream* internalLogDevice = &Serial,
+        Stream& internalLogDevice = Serial,
         Loglevel internalLogLevel = WARNING,
         bool discardMsgWhenBufferFull = false,
         uint32_t sdReconnectEvery = 5000,

@@ -10,7 +10,7 @@ void setup()
     Serial.begin(115200);
     spi.begin(18, 19, 17, 5); // Set your pins of your card reader here.
 
-    Elog::globalSettings(100, 150, &Serial, DEBUG); // We want a big buffer and internal debugging from the Elog lib.
+    Elog::globalSettings(100, 150, Serial, DEBUG); // We want a big buffer and internal debugging from the Elog lib.
     Elog::configureFilesystem(spi, 5, 2000000); // Speed set to 2mhz. Should be ok with dupont wires.
 
     // Whatever is sent to "logger" goes both to serial and to File1

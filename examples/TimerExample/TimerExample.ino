@@ -7,7 +7,7 @@ Etimer timer("Timer1", elog, 20); // 20 lapses max on this timer
 void setup()
 {
     Serial.begin(115200);
-    Elog::globalSettings(200, 10, &Serial, DEBUG); // Small buffer of 10 messages. We want internal logging from library
+    Elog::globalSettings(200, 10, Serial, DEBUG); // Small buffer of 10 messages. We want internal logging from library
     elog.addSerialLogging(Serial, "Main", INFO); // Enable serial logging
 }
 

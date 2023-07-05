@@ -315,7 +315,7 @@ Elog::Elog()
     Remember this buffer takes memory! maxLogMessageSize * maxLogMessages bytes at least */
 void Elog::globalSettings(uint16_t maxLogMessageSize,
     uint16_t maxLogMessages,
-    Stream* internalLogDevice,
+    Stream& internalLogDevice,
     Loglevel internalLogLevel,
     bool discardMsgWhenBufferFull,
     uint32_t sdReconnectEvery,
@@ -326,7 +326,7 @@ void Elog::globalSettings(uint16_t maxLogMessageSize,
     // Default values for all settings
     settings.maxLogMessageSize = maxLogMessageSize > 5 ? maxLogMessageSize : 50;
     settings.maxLogMessages = maxLogMessages > 0 ? maxLogMessages : 1; // Sanity check
-    settings.internalLogDevice = internalLogDevice;
+    settings.internalLogDevice = &internalLogDevice;
     settings.internalLogLevel = internalLogLevel;
     settings.discardMsgWhenBufferFull = discardMsgWhenBufferFull;
     settings.sdReconnectEvery = sdReconnectEvery;

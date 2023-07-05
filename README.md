@@ -80,13 +80,13 @@ Each time the ESP is restarted a new folder is created in the root of the SD-car
 ## Configuration
 If you dont like the default settings you can run this static method in the beginning of the code. It must be called before adding serial or file logging to your instance.
 ```
-Elog::globalSettings(100, 150, &Serial, DEBUG);
+Elog::globalSettings(100, 150, Serial, DEBUG);
 ```
 The parameters are in this order:
 
 - **maxLogMessageSize** = Maximum characters of the logmesage (default 250)
 - **maxLogMessages** = Size of the buffer. How many messages to hold. (default 20)
-- **internalLogDevice** = When this library output internal messages, where should it go (default &Serial)
+- **internalLogDevice** = When this library output internal messages, where should it go (default Serial)
 - **internalLogLevel** = Internal messages from this library is only shown equal to or below this level (default WARNING)
 - **discardMsgWhenBufferFull** = If true all messages will be discarded if the buffer is full. If your application is time sensitive you might want to do this (default false)
 - **sdReconnectEvery** = If a SD-card is ejected, how often should we look for the reinsertion (default 5000 ms)

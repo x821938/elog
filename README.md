@@ -46,6 +46,9 @@ Logging can be logged at different levels.
  When you create your log instance and set your outputs you also set the target log level. Everything logged with lower or equal level than the target level will be outputted.
 
  ## Basic usage
+ 
+ If you use Arduino IDE you need to install the dependency "SdFat - Adafruit fork" for this to work. If you use PlatformIO the dependency will automatically be installed.
+
  First you need to create an instance of your logger:
  ```
  #include <ELog.h>

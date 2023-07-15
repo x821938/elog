@@ -3,6 +3,7 @@
 This library was created to do easy an super efficient logging from your Arduino ESP32 programs. It uses a ringbuffer to handle logging extremely fast. This means that you can leave the log statements in your code with pretty much no performance impact!
 - Log to any Serial (0, 1, 2 or soft serial)
 - Log to SD-card
+- Log to internal SPIFFS flash memory in ESP32
 - Multiple log output
 - SD-card hotplug. You can just eject it and reinsert it. Logging will continue.
 - Very fast logging with no busy waiting!
@@ -64,7 +65,7 @@ myLog.log(INFO, "Hello! Variable x is %d", x);
 ```
 Here your can use the normal printf format for your messages. (eg: %d %s %f)
 
-## File logging
+## SD card logging
 If you want to log to SD-card you need a litle more bootstrapping.
 ```
 SPIClass spi = SPIClass(VSPI); // Prepare the spi bus for talking to card reader
@@ -74,12 +75,38 @@ void setup()
 {
     spi.begin(18, 19, 17, 5); // Set your pins of your card reader here.
     Elog::configureFilesystem(spi, 5, 2000000); // Speed set to 2mhz. Should be ok with dupont wires.
-    myLog.addFileLogging("File1", DEBUG);
+    myLog.addSdLogging("File1", DEBUG);
 
     myLog.log(INFO, "Hello! Variable x is %d", x); 
 }
 ```
 Each time the ESP is restarted a new folder is created in the root of the SD-card. It will be in format LOG00001 and will be incremented at each restart. All files created by all your log instances will be placed under this folder. The filenames are defined when you run addFileLogging().
+
+## SPIFFS logging
+You can log to the internal flash memory of the ESP32! The main problem is getting the logs out of your board. To do this i included a serial command line interface (CLI), where you can list all log files and dump them to serial.
+
+Again you need a little bootstrapping to get SPIFFS logging going:
+```
+Elog myLog; // Create a log instance
+void setup()
+{
+    myLog.addSpiffsLogging("svc", DEBUG);
+    myLog.log(INFO, "Hello! Variable x is %d", x); 
+}
+```
+Checkout the example that shows usage of SPIFFS logging. When you want to see the logs call:
+```
+myLog.spiffsQuery(Serial);
+```
+You have to include this somehow in your code. It could be triggered by a digital input, or you could listen on the serial port, like in the provided example.
+
+In the CLI you have these commands available:
+- "L" can list the logs on the SPIFFS filesystem,
+- "P" can print a logfile. Provide your log number like: "P 123", 
+- "F" Format the filesystem with "F"
+- "Q" Quit and return to your code again.
+
+
 ## Configuration
 If you dont like the default settings you can run this static method in the beginning of the code. It must be called before adding serial or file logging to your instance.
 ```

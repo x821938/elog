@@ -8,8 +8,11 @@
 // Init static vars
 std::vector<Elog*> Elog::loggerInstances;
 LogSettings Elog::settings;
-LogStatus Elog::loggerStatus = { 0, 0, 0 };
+LogStatus Elog::loggerStatus = { 0, 0, 0, 0, 0, 0, 0, 0 };
 LogRingBuff Elog::logRingBuff;
+char Elog::spiffsFileName[] = "";
+bool Elog::spiffsMounted = false;
+bool Elog::writerTaskHold = false;
 
 #ifndef LOGGER_DISABLE_SD
 
@@ -17,97 +20,60 @@ LogRingBuff Elog::logRingBuff;
 bool Elog::sdCardPresent = false;
 int32_t Elog::sdCardLastReconnect = 0;
 char Elog::directoryName[] = "";
-uint16_t Elog::logNumber = 0;
+uint16_t Elog::sdLogNumber = 0;
 uint8_t Elog::sdChipSelect; // Chipselect for sd reader
 uint32_t Elog::sdSpeed;
-bool Elog::fileSystemConfigured = false;
+bool Elog::sdConfigured = false;
 
-SdFat sd;
+SdFat Elog::sd;
 SPIClass Elog::spi;
 
 /* This is called from writerTask when some data has been popped from the ringbuffer.
    We try to write the data to sd card. If not successfull, it will try to connect to the sd card and create the logfile */
-void Elog::outputFile(LogLineEntry& logLineEntry, char* logLineMessage)
+void Elog::outputSd(LogLineEntry& logLineEntry, char* logLineMessage)
 {
     static char logStamp[45];
 
-    if (fileSystemConfigured) {
+    if (sdConfigured) {
         if (sdCardPresent) {
             LogService* svc = logLineEntry.service;
 
-            if (svc->fileOptions == FILE_NO_STAMP) {
+            if (svc->sdOptions == FILE_NO_STAMP) {
                 logStamp[0] = 0;
             } else {
                 getLogStamp(logLineEntry.logTime, logLineEntry.loglevel, logStamp);
             }
 
             createLogFileIfClosed(svc);
-            if (svc->fileHandle) { // Are we working on a valid file?
+            if (svc->sdFileHandle) { // Are we working on a valid file?
                 size_t bytesWritten; // Number of bytes written should be the same as content length
                 size_t expectedBytes = strlen(logStamp) + strlen(logLineMessage) + 2; // 2 chars for endline
 
-                bytesWritten = svc->fileHandle.print(logStamp);
-                bytesWritten += svc->fileHandle.print(logLineMessage);
+                bytesWritten = svc->sdFileHandle.print(logStamp);
+                bytesWritten += svc->sdFileHandle.print(logLineMessage);
                 if (strlen(logLineMessage) == settings.maxLogMessageSize - 1) {
-                    bytesWritten += svc->fileHandle.print("...");
+                    bytesWritten += svc->sdFileHandle.print("...");
                     expectedBytes += 3;
                 }
-                bytesWritten += svc->fileHandle.println();
+                bytesWritten += svc->sdFileHandle.println();
 
                 if (bytesWritten != expectedBytes) { // If not everything is written, then the SD must be ejected.
                     sdCardPresent = false;
                     sdCardLastReconnect = millis();
                     logInternal(WARNING, "SD card ejected");
                 } else { // Data written succesfully.
-                    loggerStatus.messagesWritten++;
+                    loggerStatus.sdMsgWritten++;
+                    loggerStatus.sdBytesWritten += bytesWritten;
                 }
             } else { // If we dont have a valid filehandle we try do create it periodically
-                loggerStatus.messagesDiscarded++;
+                loggerStatus.sdMsgNotWritten++;
             }
 
             syncAllFiles(); // Keep files synced to card periodically
         } else { // If no sd card is present, try to connect to it.
-            loggerStatus.messagesDiscarded++;
+            loggerStatus.sdMsgNotWritten++;
             reconnectSd();
         }
-    }
-}
-
-/* Reports to serial the status of the ringbuffer. It shows how many messages are written and how many are discarded
-   because of buffer overflow. It can be called as often as you want, but it only reports every SD_REPORT_BUFFER_STATUS_EVERY ms
-   This is internal logging from this library and is logged with level DEBUG. Normal users don´t want this info */
-void Elog::reportBufferStatus()
-{
-    static uint8_t maxBuffPct = 0;
-    static uint32_t lastStatus = 0;
-
-    if (logRingBuff.percentageFull() > maxBuffPct) {
-        maxBuffPct = logRingBuff.percentageFull();
-    }
-
-    if (millis() - lastStatus > settings.sdReportBufferStatusEvery) {
-        logInternal(DEBUG, "Msg buffered = %d, SD written = %d, discarded = %d, Max Buffer usage = %d%%",
-            loggerStatus.messagesBuffered,
-            loggerStatus.messagesWritten,
-            loggerStatus.messagesDiscarded, maxBuffPct);
-        maxBuffPct = 0;
-        lastStatus = millis();
-    }
-}
-
-/* Gives a warning if buffer is full. We only do this if discardMsgWhenBufferFull is false.
-   If this is set to true, the user doesn´t care about lost messages. Thats why we don´t care
-   telling him */
-void Elog::reportIfBufferFull()
-{
-    static bool bufferFullWarningSent = false;
-
-    if (logRingBuff.percentageFull() < 50) { // When buffer under half full, we clear "full warning".
-        bufferFullWarningSent = false;
-    }
-    if (!bufferFullWarningSent && logRingBuff.isFull() && !settings.discardMsgWhenBufferFull) {
-        logInternal(WARNING, "Log Buffer was full. Please increase its size.");
-        bufferFullWarningSent = true;
     }
 }
 
@@ -117,9 +83,9 @@ void Elog::reportIfBufferFull()
     cs: Chip-select pin for the SD-reader
     speed: How fast to talk to SD-reader. in Hz - default is 4Mhz. Don´t put it to high or you will get errors writing
     It connects to the sd card */
-void Elog::configureFilesystem(SPIClass& _spi, uint8_t _cs, uint32_t _speed)
+void Elog::configureSd(SPIClass& _spi, uint8_t _cs, uint32_t _speed)
 {
-    if (!fileSystemConfigured) {
+    if (!sdConfigured) {
         spi = _spi;
         sdChipSelect = _cs;
         sdSpeed = _speed;
@@ -129,7 +95,7 @@ void Elog::configureFilesystem(SPIClass& _spi, uint8_t _cs, uint32_t _speed)
         sdCardLastReconnect = LONG_MIN;
         reconnectSd();
 
-        fileSystemConfigured = true; // This is for our writerTask. When true it will start writing to sd card.
+        sdConfigured = true; // This is for our writerTask. When true it will start writing to sd card.
     } else {
         logInternal(ERROR, "You can only configure file logging once");
     }
@@ -141,17 +107,17 @@ void Elog::configureFilesystem(SPIClass& _spi, uint8_t _cs, uint32_t _speed)
     wantedLogLevel: Everything equal or lower than this loglevel will be logged
     FileOptions: Can be used to change output format written to the logfile
 */
-void Elog::addFileLogging(const char* fileName, const Loglevel wantedLogLevel, const LogFileOptions options)
+void Elog::addSdLogging(const char* fileName, const Loglevel wantedLogLevel, const LogFileOptions options)
 {
     writerTaskStart(); // Make sure that the writerTask is running
-    if (fileSystemConfigured) {
-        if (!service.fileEnabled) {
+    if (sdConfigured) {
+        if (!service.sdEnabled) {
             logInternal(INFO, "Adding file logging for filename=\"%s\"", fileName);
-            service.fileName = fileName;
-            service.fileWantedLoglevel = wantedLogLevel;
-            service.fileOptions = options;
-            service.fileEnabled = true;
-            service.fileCreteLastTry = LONG_MIN; // This triggers log file creation immediately
+            service.sdFileName = fileName;
+            service.sdWantedLoglevel = wantedLogLevel;
+            service.sdOptions = options;
+            service.sdEnabled = true;
+            service.sdFileCreteLastTry = LONG_MIN; // This triggers log file creation immediately
         } else {
             logInternal(ERROR, "You can only add file logging once");
         }
@@ -165,18 +131,18 @@ void Elog::addFileLogging(const char* fileName, const Loglevel wantedLogLevel, c
 */
 void Elog::createLogFileIfClosed(LogService* svc)
 {
-    if (!svc->fileHandle) { // Only do something if we dont have a valid filehandle
-        if (millis() - svc->fileCreteLastTry > settings.sdReconnectEvery) {
+    if (!svc->sdFileHandle) { // Only do something if we dont have a valid filehandle
+        if (millis() - svc->sdFileCreteLastTry > settings.sdReconnectEvery) {
             char filename[50];
-            sprintf(filename, "%s/%s", directoryName, svc->fileName);
+            sprintf(filename, "%s/%s", directoryName, svc->sdFileName);
 
-            svc->fileHandle.open(filename, O_CREAT | O_WRITE);
-            if (svc->fileHandle) {
+            svc->sdFileHandle.open(filename, O_CREAT | O_WRITE);
+            if (svc->sdFileHandle) {
                 logInternal(INFO, "Created logfile \"%s\"", filename);
             } else {
                 logInternal(ERROR, "Could not create logfile \"%s\"", filename);
             }
-            svc->fileCreteLastTry = millis();
+            svc->sdFileCreteLastTry = millis();
         }
     }
 }
@@ -204,28 +170,28 @@ void Elog::reconnectSd()
             if (file) {
                 char fileContent[10];
                 file.read(fileContent, 10);
-                logNumber = atoi(fileContent);
+                sdLogNumber = atoi(fileContent);
 
-                logInternal(DEBUG, "Read file /lognumber.txt and got log number %d", logNumber);
+                logInternal(DEBUG, "Read file /lognumber.txt and got log number %d", sdLogNumber);
                 file.close();
             } else {
                 logInternal(DEBUG, "No /lognumber.txt file");
-                logNumber = 1; // We start from number 1 if there is no lognumber.txt file
+                sdLogNumber = 1; // We start from number 1 if there is no lognumber.txt file
             }
 
             // Start from the lognumber and count up until we find a directory that does not exist
             while (true) {
-                sprintf(directoryName, "/LOG%05d", logNumber);
+                sprintf(directoryName, "/LOG%05d", sdLogNumber);
                 if (!file.open(directoryName, O_READ)) {
                     file.close();
                     break;
                 }
-                logNumber++;
+                sdLogNumber++;
                 file.close();
             }
 
             // Create a LOGxxxxx dir for our logfiles
-            sprintf(directoryName, "/LOG%05d", logNumber);
+            sprintf(directoryName, "/LOG%05d", sdLogNumber);
             if (!sd.mkdir(directoryName)) {
                 logInternal(ALERT, "Error creating log directory %s. No file logging!", directoryName);
             } else {
@@ -234,9 +200,9 @@ void Elog::reconnectSd()
 
             // Save the incremented lognumber in the lognumber.txt file.
             file.open("/lognumber.txt", O_WRITE | O_CREAT);
-            logInternal(DEBUG, "Writing /lognumber.txt file with lognumber %d", logNumber);
+            logInternal(DEBUG, "Writing /lognumber.txt file with lognumber %d", sdLogNumber);
             if (file) {
-                file.print(logNumber);
+                file.print(sdLogNumber);
                 file.close();
                 closeAllFiles(); // If we had something opened, we need to close it.
                 sdCardPresent = true;
@@ -254,9 +220,9 @@ void Elog::closeAllFiles()
     logInternal(INFO, "Resetting all logfiles");
     for (auto loggerInstance : loggerInstances) {
         LogService* service = &loggerInstance->service;
-        if (service->fileEnabled) {
-            service->fileHandle.close();
-            service->fileCreteLastTry = LONG_MIN; // This triggers log file creation immediately
+        if (service->sdEnabled) {
+            service->sdFileHandle.close();
+            service->sdFileCreteLastTry = LONG_MIN; // This triggers log file creation immediately
         }
     }
 }
@@ -272,8 +238,8 @@ void Elog::syncAllFiles()
         logInternal(DEBUG, "Syncronizing all logfiles. Writing dirty cache");
         for (auto loggerInstance : loggerInstances) {
             LogService* service = &loggerInstance->service;
-            if (service->fileEnabled && service->fileHandle) {
-                service->fileHandle.sync();
+            if (service->sdEnabled && service->sdFileHandle) {
+                service->sdFileHandle.sync();
             }
         }
         lastSynced = millis();
@@ -291,14 +257,115 @@ Elog::Elog()
         firstInstance = false;
     }
 
-    service.fileEnabled = false; // Default disabled for a new instance
+    service.sdEnabled = false; // Default disabled for a new instance
     service.serialEnabled = false; // Default disabled for a new instance
+    service.spiffsEnabled = false; // Default disabled for a new instance
 
     loggerInstances.push_back(this); // Save this instance for later traversal
 }
 
+void Elog::prepareSpiffs()
+{
+    if (LittleFS.begin(true)) { // Format it if we fail
+        logInternal(INFO, "SPIFFS mounted");
+        if (!LittleFS.exists("/logs")) {
+            logInternal(DEBUG, "Creating Logs directory on spiffs");
+            LittleFS.mkdir("/logs");
+        }
+
+        uint16_t logNumber = 1;
+
+        File file = LittleFS.open("/lognumber.txt", FILE_READ);
+        if (file) {
+            char fileContent[10];
+            file.read((uint8_t*)fileContent, 10);
+            logNumber = atoi(fileContent);
+
+            logInternal(DEBUG, "Read file /lognumber.txt and got log number %d", logNumber);
+            file.close();
+        } else {
+            logInternal(DEBUG, "No /lognumber.txt file");
+            logNumber = 1; // We start from number 1 if there is no lognumber.txt file
+        }
+
+        // Start from the lognumber and count up until we find a directory that does not exist
+        while (true) {
+            sprintf(spiffsFileName, "/logs/%05d", logNumber);
+            if (!LittleFS.exists(spiffsFileName)) {
+                break;
+            }
+            logNumber++;
+        }
+
+        // Save the incremented lognumber in the lognumber.txt file.
+        file = LittleFS.open("/lognumber.txt", FILE_WRITE);
+        logInternal(DEBUG, "Writing /lognumber.txt file with lognumber %d", logNumber);
+        if (file) {
+            file.print(logNumber);
+            file.close();
+        } else {
+            logInternal(ALERT, "Error writing to /lognumber.txt. No file logging!");
+        }
+
+        spiffsMounted = true;
+    } else {
+        logInternal(ERROR, "Failed to mount SPIFFS. No logging will be done to SPIFFS");
+    }
+}
+
+/* Reports to serial the status of the ringbuffer. It shows how many messages are written and how many are discarded
+   because of buffer overflow. It can be called as often as you want, but it only reports every SD_REPORT_BUFFER_STATUS_EVERY ms
+   This is internal logging from this library and is logged with level DEBUG. Normal users don´t want this info
+   Also Gives a warning if buffer is full. We only do this if discardMsgWhenBufferFull is false.
+   If this is set to true, the user doesn´t care about lost messages. Thats why we don´t care telling him
+   Also shows status for SD and SPIFFS if it is enabled */
+void Elog::reportStatus()
+{
+    static bool bufferFullWarningSent = false;
+    static uint8_t maxBuffPct = 0;
+    static uint32_t lastStatus = 0;
+
+    if (millis() - lastStatus > settings.reportStatusEvery) {
+        logInternal(DEBUG, "Status (Buffer): Msg added = %d, not added = %d, Max Buffer usage = %d%%",
+            loggerStatus.bufferMsgAdded,
+            loggerStatus.bufferMsgNotAdded,
+            maxBuffPct);
+
+#ifndef LOGGER_DISABLE_SD
+        if (sdConfigured) {
+            logInternal(DEBUG, "Status (SD): Msg written %d (%d bytes), discarded %d, free space %d bytes",
+                loggerStatus.sdMsgWritten,
+                loggerStatus.sdBytesWritten,
+                loggerStatus.sdMsgNotWritten,
+                sd.freeClusterCount() * sd.bytesPerCluster());
+        }
+#endif
+        if (spiffsMounted) {
+            logInternal(DEBUG, "Status (SPIFFS): Msg written %d (%d bytes), discarded %d, free space %d bytes",
+                loggerStatus.spiffsMsgWritten,
+                loggerStatus.spiffsBytesWritten,
+                loggerStatus.spiffsMsgNotWritten,
+                LittleFS.totalBytes() - LittleFS.usedBytes());
+        }
+
+        maxBuffPct = 0;
+        lastStatus = millis();
+    }
+
+    if (logRingBuff.percentageFull() > maxBuffPct) {
+        maxBuffPct = logRingBuff.percentageFull();
+    }
+    if (logRingBuff.percentageFull() < 50) { // When buffer under half full, we clear "full warning".
+        bufferFullWarningSent = false;
+    }
+    if (!bufferFullWarningSent && logRingBuff.isFull() && !settings.discardMsgWhenBufferFull) {
+        logInternal(WARNING, "Log Buffer was full. Please increase its size.");
+        bufferFullWarningSent = true;
+    }
+}
+
 /* All public settings for the Logger library is set here. Remember to call this before calling any
-   instance methods like addSerialLogging(), addFileLogging(), or log()
+   instance methods like addSerialLogging(), addSdLogging(), or log()
    Parameters are optional. Parameters:
 
     maxLogMessageSize: How long each logged messages can be in bytes
@@ -309,7 +376,7 @@ Elog::Elog()
     sdReconnectEvery: If connection to sd card is lost, it wil reconnect every x ms
     sdSyncFilesEvery: cache is written to sd card evey x ms
     sdTryCreateFileEvery: if a file could not be created it will retry every x ms
-    sdReportBufferStatusEvery: if debugging in this lib is enabled, the buffer status will be logged every x ms
+    reportStatusEvery: if debugging in this lib is enabled, the buffer status will be logged every x ms
     logMsgBufferWarningThreshold: lib will give an internal warning whenever this threshold percentage is passed
 
     Remember this buffer takes memory! maxLogMessageSize * maxLogMessages bytes at least */
@@ -321,7 +388,7 @@ void Elog::globalSettings(uint16_t maxLogMessageSize,
     uint32_t sdReconnectEvery,
     uint32_t sdSyncFilesEvery,
     uint32_t sdTryCreateFileEvery,
-    uint32_t sdReportBufferStatusEvery)
+    uint32_t reportStatusEvery)
 {
     // Default values for all settings
     settings.maxLogMessageSize = maxLogMessageSize > 5 ? maxLogMessageSize : 50;
@@ -332,7 +399,7 @@ void Elog::globalSettings(uint16_t maxLogMessageSize,
     settings.sdReconnectEvery = sdReconnectEvery;
     settings.sdSyncFilesEvery = sdSyncFilesEvery;
     settings.sdTryCreateFileEvery = sdTryCreateFileEvery;
-    settings.sdReportBufferStatusEvery = sdReportBufferStatusEvery;
+    settings.reportStatusEvery = reportStatusEvery;
 };
 
 /* This starts the writerTask, if it hasn't already been started (writerTask is responsible for
@@ -369,20 +436,49 @@ void Elog::writerTask(void* parameter)
     static char* logLineMessage = new char[settings.maxLogMessageSize];
 
     while (true) {
-        reportIfBufferFull();
-        reportBufferStatus();
+        while (writerTaskHold) { // Do nothing if we are instructed to pause.
+            vTaskDelay(1);
+        }
+
+        reportStatus();
 
         if (logRingBuff.pop(logLineEntry, logLineMessage)) {
             if (logLineEntry.logSerial) {
                 outputSerial(logLineEntry, logLineMessage);
             }
-            if (logLineEntry.logFile) {
-#ifndef LOGGER_DISABLE_SD
-                outputFile(logLineEntry, logLineMessage);
-#endif
+            if (spiffsMounted && logLineEntry.logSpiffs) {
+                outputSpiffs(logLineEntry, logLineMessage);
             }
+#ifndef LOGGER_DISABLE_SD
+            if (logLineEntry.logFile) {
+                outputSd(logLineEntry, logLineMessage);
+            }
+#endif
         }
         vTaskDelay(1); // Feed the watchdog. It will trigger and crash if we dont give it some time
+    }
+}
+
+/* Every 10 seconds we check the space on spiffs. This is time consuming, thats why we do it rarely
+   If we have less than 20k free space, then the oldest log files are removed until we have more
+   than 20k free again.
+   When filesystem gets full deleting seems to crash the esp. */
+void Elog::spiffsEnsureFreeSpace()
+{
+    static uint32_t lastStatus = 0;
+
+    if (millis() - lastStatus > 10000) {
+        File root = LittleFS.open("/logs");
+        File file = root.openNextFile();
+
+        while ((LittleFS.totalBytes() - LittleFS.usedBytes()) < 20000) {
+            char filename[30];
+            sprintf(filename, "/logs/%s", file.name());
+            logInternal(WARNING, "Deleting log file \"%s\" to free space", filename);
+            file = root.openNextFile();
+            LittleFS.remove(filename);
+        }
+        lastStatus = millis();
     }
 }
 
@@ -412,6 +508,67 @@ void Elog::outputSerial(const LogLineEntry& logLineEntry, const char* logLineMes
         serialPtr->print("...");
     }
     serialPtr->println();
+}
+
+/* This is called from writerTask when some data has been popped from the ringbuffer.
+   then it's written to the spiffs filesystem. It just dumps the logline to the current spiffs logfile. */
+void Elog::outputSpiffs(const LogLineEntry& logLineEntry, const char* logLineMessage)
+{
+    spiffsEnsureFreeSpace();
+
+    static char logStamp[45];
+    const char* serviceName;
+    static File file;
+
+    LogService* service = logLineEntry.service;
+    serviceName = service->spiffsServiceName;
+    getLogStamp(logLineEntry.logTime, logLineEntry.loglevel, serviceName, logStamp);
+
+    if (!file) {
+        logInternal(INFO, "Apending to spiffs file \"%s\"", spiffsFileName);
+        file = LittleFS.open(spiffsFileName, FILE_APPEND);
+    }
+
+    size_t expectedBytes = strlen(logStamp) + strlen(logLineMessage) + 2; // 2 chars for endline
+    size_t bytesWritten;
+    if (file) {
+        bytesWritten = file.print(logStamp);
+        bytesWritten += file.print(logLineMessage);
+
+        if (strlen(logLineMessage) == settings.maxLogMessageSize - 1) {
+            bytesWritten += file.print("...");
+            expectedBytes += 3;
+        }
+        bytesWritten += file.println();
+        file.flush();
+
+        if (bytesWritten != expectedBytes) {
+            logInternal(WARNING, "COULD NOT WRITE TO SPIFFS");
+            loggerStatus.spiffsMsgNotWritten++;
+        } else {
+            loggerStatus.spiffsMsgWritten++;
+            loggerStatus.spiffsBytesWritten += bytesWritten;
+        }
+    } else {
+        logInternal(WARNING, "Could not append to spiffs log file %s", spiffsFileName);
+    }
+}
+
+/* Attach spiffs logging to the Logger instance. Parameters:
+   serviceName: The servicename that is stamped on each logline (will be truncated to 3 characters)
+   wantedLogLevel: Everything under or equal to this level will be logged to the serial device */
+void Elog::addSpiffsLogging(const char* serviceName, const Loglevel wantedLogLevel)
+{
+    writerTaskStart(); // Make sure that the writerTask is running
+    if (!service.spiffsEnabled) {
+        logInternal(INFO, "Adding spiffs logging with service name=\"%s\"", serviceName);
+        service.spiffsServiceName = (char*)serviceName;
+        service.spiffsEnabled = true;
+        service.spiffsWantedLoglevel = wantedLogLevel;
+        prepareSpiffs();
+    } else {
+        logInternal(ERROR, "You can only add spiffs logging once");
+    }
 }
 
 /* Attach serial logging to the Logger instance. Parameters:
@@ -468,16 +625,18 @@ void Elog::log(const Loglevel logLevel, const char* format, ...)
     static char* logLineMessage = new char[settings.maxLogMessageSize];
     logLineEntry.logTime = millis(); // We want the current time as early as possible. Close to realtime.
 
-    if (service.fileEnabled || service.serialEnabled) {
+    if (service.sdEnabled || service.serialEnabled || service.spiffsEnabled) {
         Loglevel wantedLogLevelSerial = service.serialWantedLoglevel;
-        Loglevel wantedLogLevelFile = service.fileWantedLoglevel;
+        Loglevel wantedLogLevelFile = service.sdWantedLoglevel;
+        Loglevel wantedLogLevelSpiffs = service.spiffsWantedLoglevel;
 
         // Do we want logging? Is the loglevel correct for logging this log entry?
-        logLineEntry.logFile = (logLevel <= wantedLogLevelFile && service.fileEnabled);
+        logLineEntry.logFile = (logLevel <= wantedLogLevelFile && service.sdEnabled);
         logLineEntry.logSerial = (logLevel <= wantedLogLevelSerial && service.serialEnabled);
+        logLineEntry.logSpiffs = (logLevel <= wantedLogLevelSpiffs && service.spiffsEnabled);
 
         // For optimization va-args are checked and handled in here. It's cpu intensive. Only if needed!
-        if (logLineEntry.logFile || logLineEntry.logSerial) {
+        if (logLineEntry.logFile || logLineEntry.logSerial || logLineEntry.logSpiffs) {
 
             logLineEntry.loglevel = logLevel;
             logLineEntry.service = &service;
@@ -490,7 +649,7 @@ void Elog::log(const Loglevel logLevel, const char* format, ...)
             addToRingbuffer(logLineEntry, logLineMessage);
         }
     } else {
-        logInternal(WARNING, "Please run addFileLogging() or addSerialLogging() on your instance before logging.");
+        logInternal(WARNING, "Please run addFileLogging(), addSerialLogging() or addSpiffsLogging() on your instance before logging.");
     }
 }
 
@@ -502,17 +661,113 @@ void Elog::log(const Loglevel logLevel, const char* format, ...)
 void Elog::addToRingbuffer(const LogLineEntry& logLineEntry, const char* logLineMessage)
 {
     if (logRingBuff.push(logLineEntry, logLineMessage)) {
-        loggerStatus.messagesBuffered++;
+        loggerStatus.bufferMsgAdded++;
     } else {
         if (settings.discardMsgWhenBufferFull) { // BUFFER FULL - bad, it will just be discarded.
-            loggerStatus.messagesDiscarded++;
+            loggerStatus.bufferMsgNotAdded++;
         } else {
             while (logRingBuff.isFull()) { // Get one space in buffer to add the message
                 yield();
             }
             logRingBuff.push(logLineEntry, logLineMessage);
-            loggerStatus.messagesBuffered++;
+            loggerStatus.bufferMsgAdded++;
         }
+    }
+}
+
+/* Whenever you want to inspect the spiffs logs, you call this. It gives a simple command line interface with these commands:
+   L<enter> list all logfiles on filesystem
+   Pxx<enter> prints/dumps the logfile with number xx to the terminal
+   F<enter> format the spiffs file system
+   Q<enter> Quit and return to the code calling.
+
+   This method busywaits on serial interface and runs spiffsProcessCommand() when a linefeed is received on terminal. */
+void Elog::spiffsQuery(Stream& serialPort)
+{
+    writerTaskHold = true;
+    Serial.println("\nQuery spiffs log!");
+    Serial.println("\nCommands: L (List files), Px (Print file number x), F (Format spiffs), Q (Quit)");
+
+    bool end = false;
+    static char commandBuffer[10];
+    static int commandLength = 0;
+
+    do {
+        while (serialPort.available()) {
+            char c = serialPort.read();
+
+            if (c == '\r') {
+                continue;
+            } else if (c == '\n') {
+                commandBuffer[commandLength] = '\0';
+                serialPort.println();
+                end = spiffsProcessCommand(serialPort, commandBuffer); // Process the command when newline character is received
+                commandLength = 0; // Clear the command buffer
+            } else {
+                if (commandLength < 9) {
+                    serialPort.print(c);
+                    commandBuffer[commandLength] = c;
+                    commandLength++;
+                }
+            }
+        }
+    } while (!end);
+
+    writerTaskHold = false;
+    logInternal(INFO, "Query log ended. Returning to code.");
+}
+
+/* When commands are received on serial they are sent here. Commands are processed
+   returns true if "Q" has been received. The user wants to get out of the QuerySpiffsLog() */
+bool Elog::spiffsProcessCommand(Stream& serialPort, const char* command)
+{
+    if (command[0] == 'L' || command[0] == 'l') {
+        spiffsListLogFiles(serialPort);
+    } else if (command[0] == 'P' || command[0] == 'p') {
+        char logFile[30];
+        sprintf(logFile, "/logs/%05d", atoi(command + 1)); // All logfiles are in format "00001"
+        spiffsPrintLogFile(serialPort, logFile);
+    } else if (command[0] == 'F' || command[0] == 'f') {
+        serialPort.println("Formatting spiffs. Please wait");
+        LittleFS.format();
+        serialPort.println("Formatted!");
+        prepareSpiffs();
+    } else if (command[0] == 'Q' || command[0] == 'q') {
+        return true;
+    } else {
+        serialPort.printf("Unknown command: \"%s\"", command);
+    }
+    serialPort.println("\nCommands: L (List files), Px (Print file number x), F (Format spiffs), Q (Quit)");
+    return false;
+}
+
+/* Given a filename, the file is read from spiffs and dumped to the serial terminal */
+void Elog::spiffsPrintLogFile(Stream& serialPort, const char* filename)
+{
+    File logFile = LittleFS.open(filename, FILE_READ);
+
+    if (!logFile) {
+        serialPort.printf("Log file \"%s\" not found\n", filename);
+    } else {
+        serialPort.printf("Print logfile \"%s\"\n---------------------------\n", filename);
+        while (logFile.available()) {
+            serialPort.write(logFile.read());
+        }
+    }
+    logFile.close();
+}
+
+/* List all log files with size on the spiffs */
+void Elog::spiffsListLogFiles(Stream& serialPort)
+{
+    File root = LittleFS.open("/logs");
+    File file = root.openNextFile();
+
+    serialPort.println("List of logfiles\n----------------");
+    while (file) {
+        uint16_t logNumber = atoi(file.name());
+        serialPort.printf("%d (%d bytes)\n", logNumber, file.size());
+        file = root.openNextFile();
     }
 }
 

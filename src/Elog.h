@@ -2,6 +2,7 @@
 #define Elog_h
 
 #include <Arduino.h>
+#include <LittleFS.h>
 #include <vector>
 
 #ifndef LOGGER_DISABLE_SD
@@ -37,15 +38,19 @@ struct LogService {
     Loglevel serialWantedLoglevel; // Target loglevel. Everything below or equal to this level is logged
     bool serialEnabled; // Serial logging is enabled
 
-    const char* fileName; // Filename of the logfile on sd-card (it will be inside LOGXXXXX dir)
-    Loglevel fileWantedLoglevel; // Target loglevel. Everything below or equal to this level is logged
-    LogFileOptions fileOptions; // Options about timestamps inside the logfile
-    bool fileEnabled; // File logging is enabled
-    int32_t fileCreteLastTry; // Keep track of when we last time tried to create the logfile
+    const char* sdFileName; // Filename of the logfile on sd-card (it will be inside LOGXXXXX dir)
+    Loglevel sdWantedLoglevel; // Target loglevel. Everything below or equal to this level is logged
+    LogFileOptions sdOptions; // Options about timestamps inside the logfile
+    bool sdEnabled; // File logging is enabled
+    int32_t sdFileCreteLastTry; // Keep track of when we last time tried to create the logfile
 
 #ifndef LOGGER_DISABLE_SD
-    SdFile fileHandle; // sdfat filehandle for the open file
+    SdFile sdFileHandle; // sdfat filehandle for the open file
 #endif
+
+    char* spiffsServiceName; // The servicename that is stamped on each log message
+    Loglevel spiffsWantedLoglevel; // Target loglevel. Everything below or equal to this level is logged
+    bool spiffsEnabled; // Spiffs logging enabled
 };
 
 /* All global settings for this lib is store in this structure */
@@ -60,7 +65,7 @@ struct LogSettings {
     uint32_t sdReconnectEvery;
     uint32_t sdSyncFilesEvery;
     uint32_t sdTryCreateFileEvery;
-    uint32_t sdReportBufferStatusEvery;
+    uint32_t reportStatusEvery;
 };
 
 /* Structure that is written to the ringbuffer. It gives the WriterTask all the information
@@ -68,6 +73,7 @@ struct LogSettings {
 struct LogLineEntry {
     bool logFile; // Do we want logging to file on this handle?
     bool logSerial; // Do we want logging to serial on this handle?
+    bool logSpiffs; // Do we want logging to spiffs on this handle?
     Loglevel loglevel; // Loglevel
     uint32_t logTime; // Time in milliseconds the log message was created
     LogService* service;
@@ -76,9 +82,14 @@ struct LogLineEntry {
 
 /* Structure to store status about how the messages are sent or discarded */
 struct LogStatus {
-    uint32_t messagesBuffered;
-    uint32_t messagesWritten;
-    uint32_t messagesDiscarded;
+    uint32_t bufferMsgAdded;
+    uint32_t bufferMsgNotAdded;
+    uint32_t sdMsgWritten;
+    uint32_t sdMsgNotWritten;
+    uint32_t sdBytesWritten;
+    uint32_t spiffsMsgWritten;
+    uint32_t spiffsMsgNotWritten;
+    uint32_t spiffsBytesWritten;
 };
 
 /* The ringbuffer thats is used for buffering data for both serial and filesystem
@@ -115,14 +126,20 @@ class Elog {
 private:
     static std::vector<Elog*> loggerInstances; // for traversing logger instances from static methods
 
-    LogService service; // All instance info about file, serial, loglevel is stored here
+    static bool writerTaskHold; // If you want to pause the writerTask, set this to true.
 
-    static LogRingBuff logRingBuff;
+    LogService service; // All instance info about sd, spiffs, serial, loglevel is stored here
+
+    static bool spiffsMounted; // True when spiffs is mounted
+    static char spiffsFileName[30]; // The filename of the current log file
+
+    static LogRingBuff logRingBuff; // Our ringbuffer that stores all log messages
     static LogSettings settings; // Global settings for this library
     static LogStatus loggerStatus; // Status for logging
 
     static void writerTask(void* parameter);
     static void outputSerial(const LogLineEntry& logLineEntry, const char* logLineMessage);
+    static void outputSpiffs(const LogLineEntry& logLineEntry, const char* logLineMessage);
 
     static void getLogStamp(const uint32_t logTime, const Loglevel loglevel, char* output);
     static void getLogStamp(const uint32_t logTime, const Loglevel loglevel, const char* service, char* output);
@@ -132,10 +149,17 @@ private:
     static void logInternal(const Loglevel loglevel, const char* format, ...);
     static void writerTaskStart();
     static void addToRingbuffer(const LogLineEntry& logLineEntry, const char* logLineMessage);
-    static void reportIfBufferFull();
+    static void reportStatus();
+
+    static void prepareSpiffs();
+    static void spiffsListLogFiles(Stream& serialPort);
+    static bool spiffsProcessCommand(Stream& serialPort, const char* command);
+    static void spiffsPrintLogFile(Stream& serialPort, const char* filename);
+
+    static void spiffsEnsureFreeSpace();
 
 #ifndef LOGGER_DISABLE_SD
-    static uint16_t logNumber;
+    static uint16_t sdLogNumber;
     static char directoryName[8];
 
     static uint8_t sdChipSelect;
@@ -144,15 +168,15 @@ private:
     static bool sdCardPresent;
     static int32_t sdCardLastReconnect;
 
-    static bool fileSystemConfigured;
+    static bool sdConfigured;
 
+    static SdFat sd;
     static SPIClass spi;
     static void createLogFileIfClosed(LogService* service);
     static void reconnectSd();
     static void closeAllFiles();
     static void syncAllFiles();
-    static void reportBufferStatus();
-    static void outputFile(LogLineEntry& logLineEntry, char* logLineMessage);
+    static void outputSd(LogLineEntry& logLineEntry, char* logLineMessage);
 #endif
 
 protected:
@@ -173,13 +197,16 @@ public:
         uint32_t sdReportBufferStatusEvery = 5000);
 
     void addSerialLogging(Stream& serialPort, const char* serviceName, const Loglevel wantedLogLevel);
+    void addSpiffsLogging(const char* serviceName, const Loglevel wantedLogLevel);
     void log(const Loglevel logLevel, const char* format, ...);
+    void spiffsQuery(Stream& serialPort);
+
     char* toHex(byte* data, uint16_t len);
     char* toHex(char* data);
 
 #ifndef LOGGER_DISABLE_SD
-    static void configureFilesystem(SPIClass& spi, uint8_t cs, uint32_t speed = 4000000);
-    void addFileLogging(const char* fileName, const Loglevel wantedLogLevel, const LogFileOptions options = FILE_NO_OPTIONS);
+    static void configureSd(SPIClass& spi, uint8_t cs, uint32_t speed = 4000000);
+    void addSdLogging(const char* fileName, const Loglevel wantedLogLevel, const LogFileOptions options = FILE_NO_OPTIONS);
 #endif
 };
 

@@ -1,24 +1,32 @@
 #include <Elog.h>
 
-SPIClass spi = SPIClass(VSPI);
+SPIClass spi = SPIClass(SPI);
 
 Elog logger;
 Elog logger2;
+
+SdFat sd;
 
 void setup()
 {
     Serial.begin(115200);
     spi.begin(18, 19, 17, 5); // Set your pins of your card reader here.
 
+    if (!sd.begin(SdSpiConfig(5, SHARED_SPI, 400000, &spi))) {
+        Serial.println("SD card initialization failed");
+    } else {
+        Serial.println("OK");
+    }
+
     Elog::globalSettings(100, 150, Serial, DEBUG); // We want a big buffer and internal debugging from the Elog lib.
-    Elog::configureFilesystem(spi, 5, 2000000); // Speed set to 2mhz. Should be ok with dupont wires.
+    Elog::configureSd(spi, 5, 2000000); // Speed set to 2mhz. Should be ok with dupont wires.
 
     // Whatever is sent to "logger" goes both to serial and to File1
     logger.addSerialLogging(Serial, "Main", DEBUG);
-    logger.addFileLogging("File1", DEBUG);
+    logger.addSdLogging("File1", DEBUG);
 
     // Whatever is sent to "logger2" goes only to File2
-    logger2.addFileLogging("File2", DEBUG);
+    logger2.addSdLogging("File2", DEBUG);
 }
 
 void loop()

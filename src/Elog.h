@@ -61,11 +61,15 @@ struct LogSettings {
     Stream* internalLogDevice;
     Loglevel internalLogLevel;
     bool discardMsgWhenBufferFull;
+    uint32_t reportStatusEvery;
 
     uint32_t sdReconnectEvery;
     uint32_t sdSyncFilesEvery;
     uint32_t sdTryCreateFileEvery;
-    uint32_t reportStatusEvery;
+
+    uint32_t spiffsSyncEvery;
+    uint32_t spiffsCheckSpaceEvery;
+    uint32_t spiffsMinimumSpace;
 };
 
 /* Structure that is written to the ringbuffer. It gives the WriterTask all the information
@@ -130,6 +134,8 @@ private:
 
     LogService service; // All instance info about sd, spiffs, serial, loglevel is stored here
 
+    static File spiffsFileHandle;
+    static bool spiffsConfigured;
     static bool spiffsMounted; // True when spiffs is mounted
     static char spiffsFileName[30]; // The filename of the current log file
 
@@ -151,11 +157,11 @@ private:
     static void addToRingbuffer(const LogLineEntry& logLineEntry, const char* logLineMessage);
     static void reportStatus();
 
-    static void prepareSpiffs();
+    static void spiffsPrepare();
     static void spiffsListLogFiles(Stream& serialPort);
     static bool spiffsProcessCommand(Stream& serialPort, const char* command);
     static void spiffsPrintLogFile(Stream& serialPort, const char* filename);
-
+    static void spiffsFormat(Stream& serialPort);
     static void spiffsEnsureFreeSpace();
 
 #ifndef LOGGER_DISABLE_SD
@@ -175,7 +181,7 @@ private:
     static void createLogFileIfClosed(LogService* service);
     static void reconnectSd();
     static void closeAllFiles();
-    static void syncAllFiles();
+    static void syncAllSdFiles();
     static void outputSd(LogLineEntry& logLineEntry, char* logLineMessage);
 #endif
 
@@ -191,12 +197,10 @@ public:
         Stream& internalLogDevice = Serial,
         Loglevel internalLogLevel = WARNING,
         bool discardMsgWhenBufferFull = false,
-        uint32_t sdReconnectEvery = 5000,
-        uint32_t sdSyncFilesEvery = 5000,
-        uint32_t sdTryCreateFileEvery = 5000,
         uint32_t sdReportBufferStatusEvery = 5000);
 
     void addSerialLogging(Stream& serialPort, const char* serviceName, const Loglevel wantedLogLevel);
+    static void configureSpiffs(uint32_t spiffsSyncEvery = 5000, uint32_t spiffsCheckSpaceEvery = 10000, uint32_t spiffsMinimumSpace = 20000);
     void addSpiffsLogging(const char* serviceName, const Loglevel wantedLogLevel);
     void log(const Loglevel logLevel, const char* format, ...);
     void spiffsQuery(Stream& serialPort);
@@ -205,7 +209,7 @@ public:
     char* toHex(char* data);
 
 #ifndef LOGGER_DISABLE_SD
-    static void configureSd(SPIClass& spi, uint8_t cs, uint32_t speed = 4000000);
+    static void configureSd(SPIClass& spi, uint8_t cs, uint32_t speed = 2000000, uint32_t sdReconnectEvery = 5000, uint32_t sdSyncFilesEvery = 5000, uint32_t sdTryCreateFileEvery = 5000);
     void addSdLogging(const char* fileName, const Loglevel wantedLogLevel, const LogFileOptions options = FILE_NO_OPTIONS);
 #endif
 };

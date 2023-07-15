@@ -90,6 +90,7 @@ Again you need a little bootstrapping to get SPIFFS logging going:
 Elog myLog; // Create a log instance
 void setup()
 {
+    Elog::configureSpiffs();
     myLog.addSpiffsLogging("svc", DEBUG);
     myLog.log(INFO, "Hello! Variable x is %d", x); 
 }

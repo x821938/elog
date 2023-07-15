@@ -11,6 +11,8 @@ LogSettings Elog::settings;
 LogStatus Elog::loggerStatus = { 0, 0, 0, 0, 0, 0, 0, 0 };
 LogRingBuff Elog::logRingBuff;
 char Elog::spiffsFileName[] = "";
+File Elog::spiffsFileHandle;
+bool Elog::spiffsConfigured = false;
 bool Elog::spiffsMounted = false;
 bool Elog::writerTaskHold = false;
 
@@ -69,7 +71,7 @@ void Elog::outputSd(LogLineEntry& logLineEntry, char* logLineMessage)
                 loggerStatus.sdMsgNotWritten++;
             }
 
-            syncAllFiles(); // Keep files synced to card periodically
+            syncAllSdFiles(); // Keep files synced to card periodically
         } else { // If no sd card is present, try to connect to it.
             loggerStatus.sdMsgNotWritten++;
             reconnectSd();
@@ -81,15 +83,18 @@ void Elog::outputSd(LogLineEntry& logLineEntry, char* logLineMessage)
     It connects to the sd card reader. Parameters:
     spi: The SPI object where the SD-reader is connected to.
     cs: Chip-select pin for the SD-reader
-    speed: How fast to talk to SD-reader. in Hz - default is 4Mhz. Don´t put it to high or you will get errors writing
+    speed: How fast to talk to SD-reader. in Hz - default is 2Mhz. Don´t put it to high or you will get errors writing
     It connects to the sd card */
-void Elog::configureSd(SPIClass& _spi, uint8_t _cs, uint32_t _speed)
+void Elog::configureSd(SPIClass& _spi, uint8_t _cs, uint32_t _speed, uint32_t sdReconnectEvery, uint32_t sdSyncFilesEvery, uint32_t sdTryCreateFileEvery)
 {
     if (!sdConfigured) {
         spi = _spi;
         sdChipSelect = _cs;
         sdSpeed = _speed;
         sdCardPresent = false;
+        settings.sdReconnectEvery = sdReconnectEvery;
+        settings.sdSyncFilesEvery = sdSyncFilesEvery;
+        settings.sdTryCreateFileEvery = sdTryCreateFileEvery;
 
         logInternal(DEBUG, "Configuring filesystem");
         sdCardLastReconnect = LONG_MIN;
@@ -122,7 +127,7 @@ void Elog::addSdLogging(const char* fileName, const Loglevel wantedLogLevel, con
             logInternal(ERROR, "You can only add file logging once");
         }
     } else {
-        logInternal(ERROR, "Please run configureFilesystem() before adding file logging");
+        logInternal(ERROR, "Please run configureSd() before adding SD file logging");
     }
 }
 
@@ -230,12 +235,12 @@ void Elog::closeAllFiles()
 /* Traverses all Logger instances and forces a write of each file associated with each instance.
    This method can be called as often as wanted, but only every SD_SYNC_FILES_EVERY milliseconds
    the cache is synced to the sd card */
-void Elog::syncAllFiles()
+void Elog::syncAllSdFiles()
 {
     static uint32_t lastSynced = 0;
 
     if (millis() - lastSynced > settings.sdSyncFilesEvery) {
-        logInternal(DEBUG, "Syncronizing all logfiles. Writing dirty cache");
+        logInternal(DEBUG, "Syncronizing all SD logfiles. Writing dirty cache");
         for (auto loggerInstance : loggerInstances) {
             LogService* service = &loggerInstance->service;
             if (service->sdEnabled && service->sdFileHandle) {
@@ -264,7 +269,7 @@ Elog::Elog()
     loggerInstances.push_back(this); // Save this instance for later traversal
 }
 
-void Elog::prepareSpiffs()
+void Elog::spiffsPrepare()
 {
     if (LittleFS.begin(true)) { // Format it if we fail
         logInternal(INFO, "SPIFFS mounted");
@@ -326,14 +331,14 @@ void Elog::reportStatus()
     static uint32_t lastStatus = 0;
 
     if (millis() - lastStatus > settings.reportStatusEvery) {
-        logInternal(DEBUG, "Status (Buffer): Msg added = %d, not added = %d, Max Buffer usage = %d%%",
+        logInternal(DEBUG, "Status (Buffer): Msgs added %d, discarded %d, Max Buffer usage %d%%",
             loggerStatus.bufferMsgAdded,
             loggerStatus.bufferMsgNotAdded,
             maxBuffPct);
 
 #ifndef LOGGER_DISABLE_SD
         if (sdConfigured) {
-            logInternal(DEBUG, "Status (SD): Msg written %d (%d bytes), discarded %d, free space %d bytes",
+            logInternal(DEBUG, "Status (SD): Msgs written %d (%d bytes), discarded %d, free space %d bytes",
                 loggerStatus.sdMsgWritten,
                 loggerStatus.sdBytesWritten,
                 loggerStatus.sdMsgNotWritten,
@@ -341,7 +346,7 @@ void Elog::reportStatus()
         }
 #endif
         if (spiffsMounted) {
-            logInternal(DEBUG, "Status (SPIFFS): Msg written %d (%d bytes), discarded %d, free space %d bytes",
+            logInternal(DEBUG, "Status (SPIFFS): Msgs written %d (%d bytes), discarded %d, free space %d bytes",
                 loggerStatus.spiffsMsgWritten,
                 loggerStatus.spiffsBytesWritten,
                 loggerStatus.spiffsMsgNotWritten,
@@ -377,7 +382,6 @@ void Elog::reportStatus()
     sdSyncFilesEvery: cache is written to sd card evey x ms
     sdTryCreateFileEvery: if a file could not be created it will retry every x ms
     reportStatusEvery: if debugging in this lib is enabled, the buffer status will be logged every x ms
-    logMsgBufferWarningThreshold: lib will give an internal warning whenever this threshold percentage is passed
 
     Remember this buffer takes memory! maxLogMessageSize * maxLogMessages bytes at least */
 void Elog::globalSettings(uint16_t maxLogMessageSize,
@@ -385,9 +389,6 @@ void Elog::globalSettings(uint16_t maxLogMessageSize,
     Stream& internalLogDevice,
     Loglevel internalLogLevel,
     bool discardMsgWhenBufferFull,
-    uint32_t sdReconnectEvery,
-    uint32_t sdSyncFilesEvery,
-    uint32_t sdTryCreateFileEvery,
     uint32_t reportStatusEvery)
 {
     // Default values for all settings
@@ -396,9 +397,6 @@ void Elog::globalSettings(uint16_t maxLogMessageSize,
     settings.internalLogDevice = &internalLogDevice;
     settings.internalLogLevel = internalLogLevel;
     settings.discardMsgWhenBufferFull = discardMsgWhenBufferFull;
-    settings.sdReconnectEvery = sdReconnectEvery;
-    settings.sdSyncFilesEvery = sdSyncFilesEvery;
-    settings.sdTryCreateFileEvery = sdTryCreateFileEvery;
     settings.reportStatusEvery = reportStatusEvery;
 };
 
@@ -467,11 +465,13 @@ void Elog::spiffsEnsureFreeSpace()
 {
     static uint32_t lastStatus = 0;
 
-    if (millis() - lastStatus > 10000) {
+    if (millis() - lastStatus > settings.spiffsCheckSpaceEvery) {
+        logInternal(DEBUG, "Checking diskspace on spiffs");
         File root = LittleFS.open("/logs");
         File file = root.openNextFile();
 
-        while ((LittleFS.totalBytes() - LittleFS.usedBytes()) < 20000) {
+        while ((LittleFS.totalBytes() - LittleFS.usedBytes()) < settings.spiffsMinimumSpace) {
+            spiffsFileHandle.close(); // Close our open file, just in case we are deleting ourself
             char filename[30];
             sprintf(filename, "/logs/%s", file.name());
             logInternal(WARNING, "Deleting log file \"%s\" to free space", filename);
@@ -518,29 +518,28 @@ void Elog::outputSpiffs(const LogLineEntry& logLineEntry, const char* logLineMes
 
     static char logStamp[45];
     const char* serviceName;
-    static File file;
+    static uint32_t lastFlushTime = 0;
 
     LogService* service = logLineEntry.service;
     serviceName = service->spiffsServiceName;
     getLogStamp(logLineEntry.logTime, logLineEntry.loglevel, serviceName, logStamp);
 
-    if (!file) {
+    if (!spiffsFileHandle) {
         logInternal(INFO, "Apending to spiffs file \"%s\"", spiffsFileName);
-        file = LittleFS.open(spiffsFileName, FILE_APPEND);
+        spiffsFileHandle = LittleFS.open(spiffsFileName, FILE_APPEND);
     }
 
     size_t expectedBytes = strlen(logStamp) + strlen(logLineMessage) + 2; // 2 chars for endline
     size_t bytesWritten;
-    if (file) {
-        bytesWritten = file.print(logStamp);
-        bytesWritten += file.print(logLineMessage);
+    if (spiffsFileHandle) {
+        bytesWritten = spiffsFileHandle.print(logStamp);
+        bytesWritten += spiffsFileHandle.print(logLineMessage);
 
         if (strlen(logLineMessage) == settings.maxLogMessageSize - 1) {
-            bytesWritten += file.print("...");
+            bytesWritten += spiffsFileHandle.print("...");
             expectedBytes += 3;
         }
-        bytesWritten += file.println();
-        file.flush();
+        bytesWritten += spiffsFileHandle.println();
 
         if (bytesWritten != expectedBytes) {
             logInternal(WARNING, "COULD NOT WRITE TO SPIFFS");
@@ -548,6 +547,12 @@ void Elog::outputSpiffs(const LogLineEntry& logLineEntry, const char* logLineMes
         } else {
             loggerStatus.spiffsMsgWritten++;
             loggerStatus.spiffsBytesWritten += bytesWritten;
+        }
+
+        if (millis() - lastFlushTime > settings.spiffsSyncEvery) {
+            logInternal(DEBUG, "Syncronizing spiffs logfile. Writing dirty cache");
+            spiffsFileHandle.flush();
+            lastFlushTime = millis();
         }
     } else {
         logInternal(WARNING, "Could not append to spiffs log file %s", spiffsFileName);
@@ -560,14 +565,17 @@ void Elog::outputSpiffs(const LogLineEntry& logLineEntry, const char* logLineMes
 void Elog::addSpiffsLogging(const char* serviceName, const Loglevel wantedLogLevel)
 {
     writerTaskStart(); // Make sure that the writerTask is running
-    if (!service.spiffsEnabled) {
-        logInternal(INFO, "Adding spiffs logging with service name=\"%s\"", serviceName);
-        service.spiffsServiceName = (char*)serviceName;
-        service.spiffsEnabled = true;
-        service.spiffsWantedLoglevel = wantedLogLevel;
-        prepareSpiffs();
+    if (spiffsConfigured) {
+        if (!service.spiffsEnabled) {
+            logInternal(INFO, "Adding spiffs logging with service name=\"%s\"", serviceName);
+            service.spiffsServiceName = (char*)serviceName;
+            service.spiffsEnabled = true;
+            service.spiffsWantedLoglevel = wantedLogLevel;
+        } else {
+            logInternal(ERROR, "You can only add spiffs logging once");
+        }
     } else {
-        logInternal(ERROR, "You can only add spiffs logging once");
+        logInternal(ERROR, "Please run configureSpiffs() before adding spiffs logging");
     }
 }
 
@@ -675,6 +683,21 @@ void Elog::addToRingbuffer(const LogLineEntry& logLineEntry, const char* logLine
     }
 }
 
+void Elog::configureSpiffs(uint32_t spiffsSyncEvery, uint32_t spiffsCheckSpaceEvery, uint32_t spiffsMinimumSpace)
+{
+    if (!spiffsConfigured) {
+        logInternal(DEBUG, "Configuring spiffs");
+        settings.spiffsSyncEvery = spiffsSyncEvery;
+        settings.spiffsCheckSpaceEvery = spiffsCheckSpaceEvery;
+        settings.spiffsMinimumSpace = spiffsMinimumSpace;
+
+        spiffsPrepare();
+        spiffsConfigured = true;
+    } else {
+        logInternal(ERROR, "You can only configure spiffs logging once");
+    }
+}
+
 /* Whenever you want to inspect the spiffs logs, you call this. It gives a simple command line interface with these commands:
    L<enter> list all logfiles on filesystem
    Pxx<enter> prints/dumps the logfile with number xx to the terminal
@@ -724,14 +747,9 @@ bool Elog::spiffsProcessCommand(Stream& serialPort, const char* command)
     if (command[0] == 'L' || command[0] == 'l') {
         spiffsListLogFiles(serialPort);
     } else if (command[0] == 'P' || command[0] == 'p') {
-        char logFile[30];
-        sprintf(logFile, "/logs/%05d", atoi(command + 1)); // All logfiles are in format "00001"
-        spiffsPrintLogFile(serialPort, logFile);
+        spiffsPrintLogFile(serialPort, command + 1);
     } else if (command[0] == 'F' || command[0] == 'f') {
-        serialPort.println("Formatting spiffs. Please wait");
-        LittleFS.format();
-        serialPort.println("Formatted!");
-        prepareSpiffs();
+        spiffsFormat(serialPort);
     } else if (command[0] == 'Q' || command[0] == 'q') {
         return true;
     } else {
@@ -741,10 +759,22 @@ bool Elog::spiffsProcessCommand(Stream& serialPort, const char* command)
     return false;
 }
 
+/* Formats the spiffs filesystem */
+void Elog::spiffsFormat(Stream& serialPort)
+{
+    serialPort.println("Formatting spiffs. Please wait");
+    spiffsFileHandle.close();
+    LittleFS.format();
+    serialPort.println("Formatted!");
+    spiffsPrepare();
+}
+
 /* Given a filename, the file is read from spiffs and dumped to the serial terminal */
 void Elog::spiffsPrintLogFile(Stream& serialPort, const char* filename)
 {
-    File logFile = LittleFS.open(filename, FILE_READ);
+    char fullFilename[30];
+    sprintf(fullFilename, "/logs/%05d", atoi(filename)); // All logfiles are in format "00001"
+    File logFile = LittleFS.open(fullFilename, FILE_READ);
 
     if (!logFile) {
         serialPort.printf("Log file \"%s\" not found\n", filename);

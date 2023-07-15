@@ -162,7 +162,7 @@ private:
     static bool spiffsProcessCommand(Stream& serialPort, const char* command);
     static void spiffsPrintLogFile(Stream& serialPort, const char* filename);
     static void spiffsFormat(Stream& serialPort);
-    static void spiffsEnsureFreeSpace();
+    static void spiffsEnsureFreeSpace(bool checkImmediately = false);
 
 #ifndef LOGGER_DISABLE_SD
     static uint16_t sdLogNumber;
@@ -197,7 +197,7 @@ public:
         Stream& internalLogDevice = Serial,
         Loglevel internalLogLevel = WARNING,
         bool discardMsgWhenBufferFull = false,
-        uint32_t sdReportBufferStatusEvery = 5000);
+        uint32_t reportStatusEvery = 5000);
 
     void addSerialLogging(Stream& serialPort, const char* serviceName, const Loglevel wantedLogLevel);
     static void configureSpiffs(uint32_t spiffsSyncEvery = 5000, uint32_t spiffsCheckSpaceEvery = 10000, uint32_t spiffsMinimumSpace = 20000);

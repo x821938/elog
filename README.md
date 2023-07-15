@@ -74,7 +74,7 @@ Elog myLog; // Create a log instance
 void setup()
 {
     spi.begin(18, 19, 17, 5); // Set your pins of your card reader here.
-    Elog::configureFilesystem(spi, 5, 2000000); // Speed set to 2mhz. Should be ok with dupont wires.
+    Elog::configureSd(spi, 5, 2000000); // Speed set to 2mhz. Should be ok with dupont wires.
     myLog.addSdLogging("File1", DEBUG);
 
     myLog.log(INFO, "Hello! Variable x is %d", x); 
@@ -120,10 +120,7 @@ The parameters are in this order:
 - **internalLogDevice** = When this library output internal messages, where should it go (default Serial)
 - **internalLogLevel** = Internal messages from this library is only shown equal to or below this level (default WARNING)
 - **discardMsgWhenBufferFull** = If true all messages will be discarded if the buffer is full. If your application is time sensitive you might want to do this (default false)
-- **sdReconnectEvery** = If a SD-card is ejected, how often should we look for the reinsertion (default 5000 ms)
-- **sdSyncFilesEvery** = How often to flush the write cache for the filesystem (default 5000 ms)
-- **sdTryCreateFileEvery** = If we could not create a file, how long time to wait for next try (default 5000 ms)
-- **sdReportBufferStatusEvery** = Regularly an internal buffer status is show every (default 5000 ms)
+- **reportStatusEvery** = Regularly an internal buffer status is show every (default 5000 ms)
 
 Remember memoryusage is maxLogMessageSize x maxLogMessages! Dont reserve more than needed
 

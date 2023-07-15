@@ -461,11 +461,11 @@ void Elog::writerTask(void* parameter)
    If we have less than 20k free space, then the oldest log files are removed until we have more
    than 20k free again.
    When filesystem gets full deleting seems to crash the esp. */
-void Elog::spiffsEnsureFreeSpace()
+void Elog::spiffsEnsureFreeSpace(bool checkImmediately)
 {
     static uint32_t lastStatus = 0;
 
-    if (millis() - lastStatus > settings.spiffsCheckSpaceEvery) {
+    if (checkImmediately || (millis() - lastStatus > settings.spiffsCheckSpaceEvery)) {
         logInternal(DEBUG, "Checking diskspace on spiffs");
         File root = LittleFS.open("/logs");
         File file = root.openNextFile();
@@ -542,7 +542,8 @@ void Elog::outputSpiffs(const LogLineEntry& logLineEntry, const char* logLineMes
         bytesWritten += spiffsFileHandle.println();
 
         if (bytesWritten != expectedBytes) {
-            logInternal(WARNING, "COULD NOT WRITE TO SPIFFS");
+            logInternal(WARNING, "Could not write to spiffs");
+            spiffsEnsureFreeSpace(true);
             loggerStatus.spiffsMsgNotWritten++;
         } else {
             loggerStatus.spiffsMsgWritten++;
@@ -683,6 +684,11 @@ void Elog::addToRingbuffer(const LogLineEntry& logLineEntry, const char* logLine
     }
 }
 
+/*  This should be called to set up logging to spiffs flash memory. Parameters:
+    spiffsSyncEvery: How often the dirty cache is written to filesystem. (def 5sek). Longer is better performance, but you can loose data
+    spiffsCheckSpaceEvery: How often free disk space is checked to do cleanups. This takes performance - not too often (def 20sek)
+    spiffsMinimumSpace: When disk space is checked, we want to remove old logs until we have this free (def 20k)
+*/
 void Elog::configureSpiffs(uint32_t spiffsSyncEvery, uint32_t spiffsCheckSpaceEvery, uint32_t spiffsMinimumSpace)
 {
     if (!spiffsConfigured) {
@@ -795,10 +801,12 @@ void Elog::spiffsListLogFiles(Stream& serialPort)
 
     serialPort.println("List of logfiles\n----------------");
     while (file) {
-        uint16_t logNumber = atoi(file.name());
-        serialPort.printf("%d (%d bytes)\n", logNumber, file.size());
+        serialPort.printf("%s (%d bytes)\n", file.name(), file.size());
         file = root.openNextFile();
     }
+    uint32_t usedSpace = LittleFS.usedBytes();
+    uint32_t totalSpace = LittleFS.totalBytes();
+    serialPort.printf("\nSpiffs total size: %d bytes/ Used: %d bytes / Free: %d bytes / \n", totalSpace, usedSpace, totalSpace - usedSpace);
 }
 
 /* Method to take some byte data and present it nicely in hexformat. Eg: 12:5f:24:02...  Parameters:

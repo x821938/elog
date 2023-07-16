@@ -2,6 +2,8 @@
 
 /* Compiler options available:
     LOGGER_DISABLE_SD (not default)
+    LOGGER_DISABLE_SPIFFS (not default)
+    LOGGER_DISABLE_TIME (not defualt)
     MAX_LOG_HEX_STRING_SIZE (default = 250)
  */
 
@@ -10,11 +12,19 @@ std::vector<Elog*> Elog::loggerInstances;
 LogSettings Elog::settings;
 LogStatus Elog::loggerStatus = { 0, 0, 0, 0, 0, 0, 0, 0 };
 LogRingBuff Elog::logRingBuff;
+bool Elog::writerTaskHold = false;
+
+#ifndef LOGGER_DISABLE_TIME
+time_t Elog::providedTime;
+uint32_t Elog::providedTimeAtMillis = 0;
+#endif
+
+#ifndef LOGGER_DISABLE_SPIFFS
 char Elog::spiffsFileName[] = "";
 File Elog::spiffsFileHandle;
 bool Elog::spiffsConfigured = false;
 bool Elog::spiffsMounted = false;
-bool Elog::writerTaskHold = false;
+#endif
 
 #ifndef LOGGER_DISABLE_SD
 
@@ -34,7 +44,7 @@ SPIClass Elog::spi;
    We try to write the data to sd card. If not successfull, it will try to connect to the sd card and create the logfile */
 void Elog::outputSd(LogLineEntry& logLineEntry, char* logLineMessage)
 {
-    static char logStamp[45];
+    static char logStamp[40];
 
     if (sdConfigured) {
         if (sdCardPresent) {
@@ -269,55 +279,6 @@ Elog::Elog()
     loggerInstances.push_back(this); // Save this instance for later traversal
 }
 
-void Elog::spiffsPrepare()
-{
-    if (LittleFS.begin(true)) { // Format it if we fail
-        logInternal(INFO, "SPIFFS mounted");
-        if (!LittleFS.exists("/logs")) {
-            logInternal(DEBUG, "Creating Logs directory on spiffs");
-            LittleFS.mkdir("/logs");
-        }
-
-        uint16_t logNumber = 1;
-
-        File file = LittleFS.open("/lognumber.txt", FILE_READ);
-        if (file) {
-            char fileContent[10];
-            file.read((uint8_t*)fileContent, 10);
-            logNumber = atoi(fileContent);
-
-            logInternal(DEBUG, "Read file /lognumber.txt and got log number %d", logNumber);
-            file.close();
-        } else {
-            logInternal(DEBUG, "No /lognumber.txt file");
-            logNumber = 1; // We start from number 1 if there is no lognumber.txt file
-        }
-
-        // Start from the lognumber and count up until we find a directory that does not exist
-        while (true) {
-            sprintf(spiffsFileName, "/logs/%05d", logNumber);
-            if (!LittleFS.exists(spiffsFileName)) {
-                break;
-            }
-            logNumber++;
-        }
-
-        // Save the incremented lognumber in the lognumber.txt file.
-        file = LittleFS.open("/lognumber.txt", FILE_WRITE);
-        logInternal(DEBUG, "Writing /lognumber.txt file with lognumber %d", logNumber);
-        if (file) {
-            file.print(logNumber);
-            file.close();
-        } else {
-            logInternal(ALERT, "Error writing to /lognumber.txt. No file logging!");
-        }
-
-        spiffsMounted = true;
-    } else {
-        logInternal(ERROR, "Failed to mount SPIFFS. No logging will be done to SPIFFS");
-    }
-}
-
 /* Reports to serial the status of the ringbuffer. It shows how many messages are written and how many are discarded
    because of buffer overflow. It can be called as often as you want, but it only reports every SD_REPORT_BUFFER_STATUS_EVERY ms
    This is internal logging from this library and is logged with level DEBUG. Normal users don´t want this info
@@ -345,6 +306,7 @@ void Elog::reportStatus()
                 sd.freeClusterCount() * sd.bytesPerCluster());
         }
 #endif
+#ifndef LOGGER_DISABLE_SPIFFS
         if (spiffsMounted) {
             logInternal(DEBUG, "Status (SPIFFS): Msgs written %d (%d bytes), discarded %d, free space %d bytes",
                 loggerStatus.spiffsMsgWritten,
@@ -352,6 +314,7 @@ void Elog::reportStatus()
                 loggerStatus.spiffsMsgNotWritten,
                 LittleFS.totalBytes() - LittleFS.usedBytes());
         }
+#endif
 
         maxBuffPct = 0;
         lastStatus = millis();
@@ -444,9 +407,11 @@ void Elog::writerTask(void* parameter)
             if (logLineEntry.logSerial) {
                 outputSerial(logLineEntry, logLineMessage);
             }
+#ifndef LOGGER_DISABLE_SPIFFS
             if (spiffsMounted && logLineEntry.logSpiffs) {
                 outputSpiffs(logLineEntry, logLineMessage);
             }
+#endif
 #ifndef LOGGER_DISABLE_SD
             if (logLineEntry.logFile) {
                 outputSd(logLineEntry, logLineMessage);
@@ -457,37 +422,12 @@ void Elog::writerTask(void* parameter)
     }
 }
 
-/* Every 10 seconds we check the space on spiffs. This is time consuming, thats why we do it rarely
-   If we have less than 20k free space, then the oldest log files are removed until we have more
-   than 20k free again.
-   When filesystem gets full deleting seems to crash the esp. */
-void Elog::spiffsEnsureFreeSpace(bool checkImmediately)
-{
-    static uint32_t lastStatus = 0;
-
-    if (checkImmediately || (millis() - lastStatus > settings.spiffsCheckSpaceEvery)) {
-        logInternal(DEBUG, "Checking diskspace on spiffs");
-        File root = LittleFS.open("/logs");
-        File file = root.openNextFile();
-
-        while ((LittleFS.totalBytes() - LittleFS.usedBytes()) < settings.spiffsMinimumSpace) {
-            spiffsFileHandle.close(); // Close our open file, just in case we are deleting ourself
-            char filename[30];
-            sprintf(filename, "/logs/%s", file.name());
-            logInternal(WARNING, "Deleting log file \"%s\" to free space", filename);
-            file = root.openNextFile();
-            LittleFS.remove(filename);
-        }
-        lastStatus = millis();
-    }
-}
-
 /* This is called from writerTask when some data has been popped from the ringbuffer.
    then it's written to the serial device. It just dumps the logline to the serial interface.
    It is also called from logInternal, because we want to log here without touching the buffer */
 void Elog::outputSerial(const LogLineEntry& logLineEntry, const char* logLineMessage)
 {
-    static char logStamp[45];
+    static char logStamp[50];
 
     const char* serviceName;
     Stream* serialPtr;
@@ -508,76 +448,6 @@ void Elog::outputSerial(const LogLineEntry& logLineEntry, const char* logLineMes
         serialPtr->print("...");
     }
     serialPtr->println();
-}
-
-/* This is called from writerTask when some data has been popped from the ringbuffer.
-   then it's written to the spiffs filesystem. It just dumps the logline to the current spiffs logfile. */
-void Elog::outputSpiffs(const LogLineEntry& logLineEntry, const char* logLineMessage)
-{
-    spiffsEnsureFreeSpace();
-
-    static char logStamp[45];
-    const char* serviceName;
-    static uint32_t lastFlushTime = 0;
-
-    LogService* service = logLineEntry.service;
-    serviceName = service->spiffsServiceName;
-    getLogStamp(logLineEntry.logTime, logLineEntry.loglevel, serviceName, logStamp);
-
-    if (!spiffsFileHandle) {
-        logInternal(INFO, "Apending to spiffs file \"%s\"", spiffsFileName);
-        spiffsFileHandle = LittleFS.open(spiffsFileName, FILE_APPEND);
-    }
-
-    size_t expectedBytes = strlen(logStamp) + strlen(logLineMessage) + 2; // 2 chars for endline
-    size_t bytesWritten;
-    if (spiffsFileHandle) {
-        bytesWritten = spiffsFileHandle.print(logStamp);
-        bytesWritten += spiffsFileHandle.print(logLineMessage);
-
-        if (strlen(logLineMessage) == settings.maxLogMessageSize - 1) {
-            bytesWritten += spiffsFileHandle.print("...");
-            expectedBytes += 3;
-        }
-        bytesWritten += spiffsFileHandle.println();
-
-        if (bytesWritten != expectedBytes) {
-            logInternal(WARNING, "Could not write to spiffs");
-            spiffsEnsureFreeSpace(true);
-            loggerStatus.spiffsMsgNotWritten++;
-        } else {
-            loggerStatus.spiffsMsgWritten++;
-            loggerStatus.spiffsBytesWritten += bytesWritten;
-        }
-
-        if (millis() - lastFlushTime > settings.spiffsSyncEvery) {
-            logInternal(DEBUG, "Syncronizing spiffs logfile. Writing dirty cache");
-            spiffsFileHandle.flush();
-            lastFlushTime = millis();
-        }
-    } else {
-        logInternal(WARNING, "Could not append to spiffs log file %s", spiffsFileName);
-    }
-}
-
-/* Attach spiffs logging to the Logger instance. Parameters:
-   serviceName: The servicename that is stamped on each logline (will be truncated to 3 characters)
-   wantedLogLevel: Everything under or equal to this level will be logged to the serial device */
-void Elog::addSpiffsLogging(const char* serviceName, const Loglevel wantedLogLevel)
-{
-    writerTaskStart(); // Make sure that the writerTask is running
-    if (spiffsConfigured) {
-        if (!service.spiffsEnabled) {
-            logInternal(INFO, "Adding spiffs logging with service name=\"%s\"", serviceName);
-            service.spiffsServiceName = (char*)serviceName;
-            service.spiffsEnabled = true;
-            service.spiffsWantedLoglevel = wantedLogLevel;
-        } else {
-            logInternal(ERROR, "You can only add spiffs logging once");
-        }
-    } else {
-        logInternal(ERROR, "Please run configureSpiffs() before adding spiffs logging");
-    }
 }
 
 /* Attach serial logging to the Logger instance. Parameters:
@@ -684,6 +554,8 @@ void Elog::addToRingbuffer(const LogLineEntry& logLineEntry, const char* logLine
     }
 }
 
+#ifndef LOGGER_DISABLE_SPIFFS
+
 /*  This should be called to set up logging to spiffs flash memory. Parameters:
     spiffsSyncEvery: How often the dirty cache is written to filesystem. (def 5sek). Longer is better performance, but you can loose data
     spiffsCheckSpaceEvery: How often free disk space is checked to do cleanups. This takes performance - not too often (def 20sek)
@@ -701,6 +573,151 @@ void Elog::configureSpiffs(uint32_t spiffsSyncEvery, uint32_t spiffsCheckSpaceEv
         spiffsConfigured = true;
     } else {
         logInternal(ERROR, "You can only configure spiffs logging once");
+    }
+}
+
+/* Mounts spiffs and finds the next logfile for writing */
+void Elog::spiffsPrepare()
+{
+    if (LittleFS.begin(true)) { // Format it if we fail
+        logInternal(INFO, "SPIFFS mounted");
+        if (!LittleFS.exists("/logs")) {
+            logInternal(DEBUG, "Creating Logs directory on spiffs");
+            LittleFS.mkdir("/logs");
+        }
+
+        uint16_t logNumber = 1;
+
+        File file = LittleFS.open("/lognumber.txt", FILE_READ);
+        if (file) {
+            char fileContent[10];
+            file.read((uint8_t*)fileContent, 10);
+            logNumber = atoi(fileContent);
+
+            logInternal(DEBUG, "Read file /lognumber.txt and got log number %d", logNumber);
+            file.close();
+        } else {
+            logInternal(DEBUG, "No /lognumber.txt file");
+            logNumber = 1; // We start from number 1 if there is no lognumber.txt file
+        }
+
+        // Start from the lognumber and count up until we find a directory that does not exist
+        while (true) {
+            sprintf(spiffsFileName, "/logs/%05d", logNumber);
+            if (!LittleFS.exists(spiffsFileName)) {
+                break;
+            }
+            logNumber++;
+        }
+
+        // Save the incremented lognumber in the lognumber.txt file.
+        file = LittleFS.open("/lognumber.txt", FILE_WRITE);
+        logInternal(DEBUG, "Writing /lognumber.txt file with lognumber %d", logNumber);
+        if (file) {
+            file.print(logNumber);
+            file.close();
+        } else {
+            logInternal(ALERT, "Error writing to /lognumber.txt. No file logging!");
+        }
+
+        spiffsMounted = true;
+    } else {
+        logInternal(ERROR, "Failed to mount SPIFFS. No logging will be done to SPIFFS");
+    }
+}
+
+/* This is called from writerTask when some data has been popped from the ringbuffer.
+   then it's written to the spiffs filesystem. It just dumps the logline to the current spiffs logfile. */
+void Elog::outputSpiffs(const LogLineEntry& logLineEntry, const char* logLineMessage)
+{
+    spiffsEnsureFreeSpace();
+
+    static char logStamp[50];
+    const char* serviceName;
+    static uint32_t lastFlushTime = 0;
+
+    LogService* service = logLineEntry.service;
+    serviceName = service->spiffsServiceName;
+    getLogStamp(logLineEntry.logTime, logLineEntry.loglevel, serviceName, logStamp);
+
+    if (!spiffsFileHandle) {
+        logInternal(INFO, "Apending to spiffs file \"%s\"", spiffsFileName);
+        spiffsFileHandle = LittleFS.open(spiffsFileName, FILE_APPEND);
+    }
+
+    size_t expectedBytes = strlen(logStamp) + strlen(logLineMessage) + 2; // 2 chars for endline
+    size_t bytesWritten;
+    if (spiffsFileHandle) {
+        bytesWritten = spiffsFileHandle.print(logStamp);
+        bytesWritten += spiffsFileHandle.print(logLineMessage);
+
+        if (strlen(logLineMessage) == settings.maxLogMessageSize - 1) {
+            bytesWritten += spiffsFileHandle.print("...");
+            expectedBytes += 3;
+        }
+        bytesWritten += spiffsFileHandle.println();
+
+        if (bytesWritten != expectedBytes) {
+            logInternal(WARNING, "Could not write to spiffs");
+            spiffsEnsureFreeSpace(true);
+            loggerStatus.spiffsMsgNotWritten++;
+        } else {
+            loggerStatus.spiffsMsgWritten++;
+            loggerStatus.spiffsBytesWritten += bytesWritten;
+        }
+
+        if (millis() - lastFlushTime > settings.spiffsSyncEvery) {
+            logInternal(DEBUG, "Syncronizing spiffs logfile. Writing dirty cache");
+            spiffsFileHandle.flush();
+            lastFlushTime = millis();
+        }
+    } else {
+        logInternal(WARNING, "Could not append to spiffs log file %s", spiffsFileName);
+    }
+}
+
+/* Every 10 seconds we check the space on spiffs. This is time consuming, thats why we do it rarely
+   If we have less than 20k free space, then the oldest log files are removed until we have more
+   than 20k free again.
+   When filesystem gets full deleting seems to crash the esp. */
+void Elog::spiffsEnsureFreeSpace(bool checkImmediately)
+{
+    static uint32_t lastStatus = 0;
+
+    if (checkImmediately || (millis() - lastStatus > settings.spiffsCheckSpaceEvery)) {
+        logInternal(DEBUG, "Checking diskspace on spiffs");
+        File root = LittleFS.open("/logs");
+        File file = root.openNextFile();
+
+        while ((LittleFS.totalBytes() - LittleFS.usedBytes()) < settings.spiffsMinimumSpace) {
+            spiffsFileHandle.close(); // Close our open file, just in case we are deleting ourself
+            char filename[30];
+            sprintf(filename, "/logs/%s", file.name());
+            logInternal(WARNING, "Deleting log file \"%s\" to free space", filename);
+            file = root.openNextFile();
+            LittleFS.remove(filename);
+        }
+        lastStatus = millis();
+    }
+}
+
+/* Attach spiffs logging to the Logger instance. Parameters:
+   serviceName: The servicename that is stamped on each logline (will be truncated to 3 characters)
+   wantedLogLevel: Everything under or equal to this level will be logged to the serial device */
+void Elog::addSpiffsLogging(const char* serviceName, const Loglevel wantedLogLevel)
+{
+    writerTaskStart(); // Make sure that the writerTask is running
+    if (spiffsConfigured) {
+        if (!service.spiffsEnabled) {
+            logInternal(INFO, "Adding spiffs logging with service name=\"%s\"", serviceName);
+            service.spiffsServiceName = (char*)serviceName;
+            service.spiffsEnabled = true;
+            service.spiffsWantedLoglevel = wantedLogLevel;
+        } else {
+            logInternal(ERROR, "You can only add spiffs logging once");
+        }
+    } else {
+        logInternal(ERROR, "Please run configureSpiffs() before adding spiffs logging");
     }
 }
 
@@ -788,6 +805,19 @@ void Elog::spiffsPrintLogFile(Stream& serialPort, const char* filename)
         serialPort.printf("Print logfile \"%s\"\n---------------------------\n", filename);
         while (logFile.available()) {
             serialPort.write(logFile.read());
+            if (serialPort.available()) {
+                char c = serialPort.read();
+                if (c == 'Q' || c == 'q') { // Print can be aborted with Q
+                    serialPort.println("\nAborted!");
+                    return;
+                } // Or paused with space
+                if (c == ' ') {
+                    while (!serialPort.available()) {
+                        yield();
+                    }
+                    serialPort.read();
+                }
+            }
         }
     }
     logFile.close();
@@ -809,43 +839,42 @@ void Elog::spiffsListLogFiles(Stream& serialPort)
     serialPort.printf("\nSpiffs total size: %d bytes/ Used: %d bytes / Free: %d bytes / \n", totalSpace, usedSpace, totalSpace - usedSpace);
 }
 
-/* Method to take some byte data and present it nicely in hexformat. Eg: 12:5f:24:02...  Parameters:
-   data: a pointer to some byte data
-   len: Length of the data in bytes
-   Returns a char* to the hex-string. This is static, so be carefull how you call and use this */
-char* Elog::toHex(byte* data, uint16_t len)
+#endif
+
+#ifndef LOGGER_DISABLE_TIME
+
+/* Provide reference time to logger library. All future loggings are based on this time in the stamp
+   year: The real year (like 2023)
+   month: The month (1-12 )
+   day: The day (1-31)
+   hour: 24 hour time (0-24)
+   minute: Minutes of the hour (0-59)
+   seconds: Seconds (0-59) */
+void Elog::provideTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second)
 {
-    static char hexString[LOG_MAX_HEX_STRING_LENGTH];
-    bool tooLong = false;
+    logInternal(INFO, "Real time provided");
 
-    if (len * 3 - 1 >= LOG_MAX_HEX_STRING_LENGTH) {
-        logInternal(WARNING, "Hex size is longer than %d. Please change LOG_MAX_HEX_STRING_LENGTH", LOG_MAX_HEX_STRING_LENGTH);
-        tooLong = true;
-        len = LOG_MAX_HEX_STRING_LENGTH / 3 - 3; // Leave space for dots in the end
-    }
-
-    char* ptr = hexString;
-    for (uint16_t i = 0; i < len; i++) {
-        sprintf(ptr, "%02X", data[i]);
-        ptr += 2;
-        if (i < len - 1) {
-            ptr++[0] = ':';
-        }
-    }
-    if (tooLong) {
-        strcpy(ptr, "...");
-    } else {
-        ptr++[0] = '\0';
-    }
-
-    return hexString;
+    tmElements_t tm = { second, minute, hour, 0, day, month, year - 1970 };
+    Elog::providedTime = makeTime(tm); // Save the provided time
+    providedTimeAtMillis = millis(); // And when it was given
 }
 
-/* Same as the byte version. This just takes a char* instead */
-char* Elog::toHex(char* data)
+/*  Returns time in "output" since boot in format eg: 2023-07-15 08:12:40 043
+    Return string length in chars */
+uint8_t Elog::getTimeStringReal(uint32_t milliseconds, char* output)
 {
-    return toHex((byte*)data, strlen(data));
+    static tmElements_t tm;
+
+    uint32_t timeSinceProvided = millis() - providedTimeAtMillis; // Time in ms since real time was provided
+    time_t newTime = providedTime + timeSinceProvided / 1000;
+    breakTime(newTime, tm);
+
+    uint16_t milliSeconds = timeSinceProvided % 1000;
+    uint16_t length = sprintf(output, "%04d-%02d-%02d %02d:%02d:%02d %03d", tmYearToCalendar(tm.Year), tm.Month, tm.Day, tm.Hour, tm.Minute, tm.Second, milliSeconds);
+    return length;
 }
+
+#endif
 
 /*  Returns time in "output" since boot in format eg: 000:00:00:01:065
     Return string length in chars */
@@ -894,7 +923,7 @@ uint8_t Elog::getLogLevelString(const Loglevel logLevel, char* output)
    stamp is returned to "output" var */
 void Elog::getLogStamp(const uint32_t logTime, const Loglevel loglevel, const char* service, char* output)
 {
-    output += getTimeStringMillis(logTime, output);
+    output += getTimeString(logTime, output);
     output[0] = ' ';
     output++;
 
@@ -912,13 +941,68 @@ void Elog::getLogStamp(const uint32_t logTime, const Loglevel loglevel, const ch
    stamp is returned to "output" var */
 void Elog::getLogStamp(const uint32_t logTime, const Loglevel loglevel, char* output)
 {
-    output += getTimeStringMillis(logTime, output);
+    output += getTimeString(logTime, output);
     output[0] = ' ';
     output++;
 
     output += getLogLevelString(loglevel, output);
 
     strcpy(output, " : ");
+}
+
+/* Method to take some byte data and present it nicely in hexformat. Eg: 12:5f:24:02...  Parameters:
+   data: a pointer to some byte data
+   len: Length of the data in bytes
+   Returns a char* to the hex-string. This is static, so be carefull how you call and use this */
+char* Elog::toHex(byte* data, uint16_t len)
+{
+    static char hexString[LOG_MAX_HEX_STRING_LENGTH];
+    bool tooLong = false;
+
+    if (len * 3 - 1 >= LOG_MAX_HEX_STRING_LENGTH) {
+        logInternal(WARNING, "Hex size is longer than %d. Please change LOG_MAX_HEX_STRING_LENGTH", LOG_MAX_HEX_STRING_LENGTH);
+        tooLong = true;
+        len = LOG_MAX_HEX_STRING_LENGTH / 3 - 3; // Leave space for dots in the end
+    }
+
+    char* ptr = hexString;
+    for (uint16_t i = 0; i < len; i++) {
+        sprintf(ptr, "%02X", data[i]);
+        ptr += 2;
+        if (i < len - 1) {
+            ptr++[0] = ':';
+        }
+    }
+    if (tooLong) {
+        strcpy(ptr, "...");
+    } else {
+        ptr++[0] = '\0';
+    }
+
+    return hexString;
+}
+
+/* Same as the byte version. This just takes a char* instead */
+char* Elog::toHex(char* data)
+{
+    return toHex((byte*)data, strlen(data));
+}
+
+/* Depending of if real time is provided with provideTime(), this gives back
+   Time in Milliseconds or the real time */
+uint8_t Elog::getTimeString(uint32_t milliSeconds, char* output)
+{
+    uint16_t length;
+#ifndef LOGGER_DISABLE_TIME
+    if (providedTimeAtMillis > 0) {
+        length = getTimeStringReal(milliSeconds, output);
+    } else {
+        length = getTimeStringMillis(milliSeconds, output);
+    }
+#else
+    length = getTimeStringMillis(milliSeconds, output);
+#endif
+    return length;
 }
 
 /* ----------------------------------- Ring Buffer ----------------------------------- */

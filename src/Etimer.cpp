@@ -59,7 +59,7 @@ void Etimer::lap()
    you probably want all the messages. */
 void Etimer::show()
 {
-    static char timeStr[17];
+    static char timeStr[25];
     static char sinceStartStr[40];
     static char sinceLastLapStr[40];
 
@@ -69,7 +69,7 @@ void Etimer::show()
 
     for (uint8_t lap = 0; lap < currentLap; lap++) { // Traverse all the recorded laps
         if (lap == 0) {
-            getTimeStringMillis(startedMillis, timeStr);
+            getTimeString(startedMillis, timeStr);
             logger->log(INFO, "Timer (%s) started at: %s", name, timeStr);
         } else {
             uint32_t sinceLastLap = lapMicros[lap] - lapMicros[lap - 1];

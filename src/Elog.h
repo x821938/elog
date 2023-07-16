@@ -2,8 +2,15 @@
 #define Elog_h
 
 #include <Arduino.h>
-#include <LittleFS.h>
 #include <vector>
+
+#ifndef LOGGER_DISABLE_TIME
+#include <TimeLib.h>
+#endif
+
+#ifndef LOGGER_DISABLE_SPIFFS
+#include <LittleFS.h>
+#endif
 
 #ifndef LOGGER_DISABLE_SD
 #include <SdFat.h>
@@ -134,11 +141,6 @@ private:
 
     LogService service; // All instance info about sd, spiffs, serial, loglevel is stored here
 
-    static File spiffsFileHandle;
-    static bool spiffsConfigured;
-    static bool spiffsMounted; // True when spiffs is mounted
-    static char spiffsFileName[30]; // The filename of the current log file
-
     static LogRingBuff logRingBuff; // Our ringbuffer that stores all log messages
     static LogSettings settings; // Global settings for this library
     static LogStatus loggerStatus; // Status for logging
@@ -157,12 +159,23 @@ private:
     static void addToRingbuffer(const LogLineEntry& logLineEntry, const char* logLineMessage);
     static void reportStatus();
 
+#ifndef LOGGER_DISABLE_TIME
+    static time_t providedTime;
+    static uint32_t providedTimeAtMillis;
+#endif
+#ifndef LOGGER_DISABLE_SPIFFS
+    static File spiffsFileHandle;
+    static bool spiffsConfigured;
+    static bool spiffsMounted; // True when spiffs is mounted
+    static char spiffsFileName[30]; // The filename of the current log file
+
     static void spiffsPrepare();
     static void spiffsListLogFiles(Stream& serialPort);
     static bool spiffsProcessCommand(Stream& serialPort, const char* command);
     static void spiffsPrintLogFile(Stream& serialPort, const char* filename);
     static void spiffsFormat(Stream& serialPort);
     static void spiffsEnsureFreeSpace(bool checkImmediately = false);
+#endif
 
 #ifndef LOGGER_DISABLE_SD
     static uint16_t sdLogNumber;
@@ -187,7 +200,9 @@ private:
 
 protected:
     // This is kept protected for the LoggerTimer to access these things
+    static uint8_t getTimeString(uint32_t milliSeconds, char* output);
     static uint8_t getTimeStringMillis(uint32_t milliSeconds, char* output);
+    static uint8_t getTimeStringReal(uint32_t milliseconds, char* output);
 
 public:
     Elog();
@@ -203,11 +218,16 @@ public:
     static void configureSpiffs(uint32_t spiffsSyncEvery = 5000, uint32_t spiffsCheckSpaceEvery = 10000, uint32_t spiffsMinimumSpace = 20000);
     void addSpiffsLogging(const char* serviceName, const Loglevel wantedLogLevel);
     void log(const Loglevel logLevel, const char* format, ...);
-    void spiffsQuery(Stream& serialPort);
 
     char* toHex(byte* data, uint16_t len);
     char* toHex(char* data);
 
+#ifndef LOGGER_DISABLE_TIME
+    static void provideTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second);
+#endif
+#ifndef LOGGER_DISABLE_SPIFFS
+    void spiffsQuery(Stream& serialPort);
+#endif
 #ifndef LOGGER_DISABLE_SD
     static void configureSd(SPIClass& spi, uint8_t cs, uint32_t speed = 2000000, uint32_t sdReconnectEvery = 5000, uint32_t sdSyncFilesEvery = 5000, uint32_t sdTryCreateFileEvery = 5000);
     void addSdLogging(const char* fileName, const Loglevel wantedLogLevel, const LogFileOptions options = FILE_NO_OPTIONS);

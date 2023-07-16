@@ -1,3 +1,13 @@
+/* Dont let this sketch run for days on your ESP. It's writing to internal flash!
+
+   There is about 100000 write cycles before your device starts failing.
+   With this sketch it will fill up the flash in about 8 minutes. Then it will
+   delete the logfile and start again.
+
+   Local flash is ok for logging if it's not too extensive.
+
+   In console press any key, and you can review the logs on the flash */
+
 #include <Elog.h>
 
 Elog logger;
@@ -7,13 +17,13 @@ void setup()
 {
     Serial.begin(115200);
 
-    Elog::globalSettings(100, 150); // We want a big buffer!
+    Elog::globalSettings(150, 150); // We want a big buffer!
     Elog::configureSpiffs(); // Must be done before adding spiffs logging;
 
     logger.addSpiffsLogging("spf", DEBUG); // All logging to "logger" goes to spiffs
 
     logger2.addSerialLogging(Serial, "Main", DEBUG); // All logging to "logger2" goes to serial
-    logger2.addSpiffsLogging("2nd", DEBUG); // Also alle logging to "logger2" goes to spiffs
+    logger2.addSpiffsLogging("2nd", DEBUG); // Also all logging to "logger2" goes to spiffs
 }
 
 void loop()

@@ -109,7 +109,7 @@ In the CLI you have these commands available:
 
 If printing very long logs you can pause it by pressing SPACE. You can also abort by pressing Q.
 
-### Real human times in logs:
+## Real human times in logs:
 If you want some real time stamps on your log entries you can provide the time for the library. Your output could look like this:
 ```
 2023-07-15 08:25:09 577 [MAI] [INFO ] : ECEF: X=350075848.43, Y=52893867.26, Z=528754469.13, Accuracy=8667.2
@@ -125,6 +125,7 @@ There are so many ways of getting real time. RTC clock, GPS, NTP etc. The only t
 Elog::provideTime(2023, 7, 15, 8, 12, 34);  // We make up the time: 15th of july 2023 at 08:12:34
  ```
 You can regularly provide the time. The esp is a few seconds wrong each day, so you can correct it when needed. 
+**If you provide time your files on SD-card and the SPIFFS will be correctly stamped!** This makes it much easier to find the correct logfile.
 
 ## Configuration
 If you dont like the default settings you can run this static method in the beginning of the code. It must be called before adding serial or file logging to your instance.

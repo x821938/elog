@@ -10,9 +10,10 @@
 // Init static vars
 std::vector<Elog*> Elog::loggerInstances;
 LogSettings Elog::settings;
-LogStatus Elog::loggerStatus = { 0, 0, 0, 0, 0, 0, 0, 0 };
+LogStatus Elog::loggerStatus = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 LogRingBuff Elog::logRingBuff;
 bool Elog::writerTaskHold = false;
+bool Elog::serialEnabled = false;
 
 #ifndef LOGGER_DISABLE_TIME
 time_t Elog::providedTime;
@@ -24,6 +25,7 @@ char Elog::spiffsFileName[] = "";
 File Elog::spiffsFileHandle;
 bool Elog::spiffsConfigured = false;
 bool Elog::spiffsMounted = false;
+bool Elog::spiffsDateFileWritten = false;
 #endif
 
 #ifndef LOGGER_DISABLE_SD
@@ -81,7 +83,7 @@ void Elog::outputSd(LogLineEntry& logLineEntry, char* logLineMessage)
                 loggerStatus.sdMsgNotWritten++;
             }
 
-            syncAllSdFiles(); // Keep files synced to card periodically
+            sdSyncAllFiles(); // Keep files synced to card periodically
         } else { // If no sd card is present, try to connect to it.
             loggerStatus.sdMsgNotWritten++;
             reconnectSd();
@@ -245,7 +247,7 @@ void Elog::closeAllFiles()
 /* Traverses all Logger instances and forces a write of each file associated with each instance.
    This method can be called as often as wanted, but only every SD_SYNC_FILES_EVERY milliseconds
    the cache is synced to the sd card */
-void Elog::syncAllSdFiles()
+void Elog::sdSyncAllFiles()
 {
     static uint32_t lastSynced = 0;
 
@@ -254,6 +256,12 @@ void Elog::syncAllSdFiles()
         for (auto loggerInstance : loggerInstances) {
             LogService* service = &loggerInstance->service;
             if (service->sdEnabled && service->sdFileHandle) {
+#ifndef LOGGER_DISABLE_TIME
+                if (providedTimeAtMillis > 0) {
+                    PrecisionTime pt = GetRealTime();
+                    service->sdFileHandle.timestamp(T_WRITE + T_CREATE, pt.year, pt.month, pt.day, pt.hour, pt.minute, pt.second);
+                }
+#endif
                 service->sdFileHandle.sync();
             }
         }
@@ -291,24 +299,43 @@ void Elog::reportStatus()
     static uint8_t maxBuffPct = 0;
     static uint32_t lastStatus = 0;
 
+    if (logRingBuff.percentageFull() > maxBuffPct) {
+        maxBuffPct = logRingBuff.percentageFull();
+    }
+
+    if (logRingBuff.percentageFull() < 50) { // When buffer under half full, we clear "full warning".
+        bufferFullWarningSent = false;
+    }
+    if (!bufferFullWarningSent && logRingBuff.isFull() && !settings.discardMsgWhenBufferFull) {
+        logInternal(WARNING, "Log Buffer was full. Please increase its size.");
+        bufferFullWarningSent = true;
+    }
+
     if (millis() - lastStatus > settings.reportStatusEvery) {
-        logInternal(DEBUG, "Status (Buffer): Msgs added %d, discarded %d, Max Buffer usage %d%%",
+        logInternal(DEBUG, "Status (Buffer): msgs added %d, discarded %d, Max Buffer usage %d%%",
             loggerStatus.bufferMsgAdded,
             loggerStatus.bufferMsgNotAdded,
             maxBuffPct);
 
+        if (serialEnabled) {
+            logInternal(DEBUG, "Status (Serial): msgs written %d (%d bytes)",
+                loggerStatus.serialMsgWritten,
+                loggerStatus.serialBytesWritten);
+        }
 #ifndef LOGGER_DISABLE_SD
         if (sdConfigured) {
-            logInternal(DEBUG, "Status (SD): Msgs written %d (%d bytes), discarded %d, free space %d bytes",
+            uint32_t freeSpace = sd.freeClusterCount() * sd.bytesPerCluster();
+            logInternal(DEBUG, "Status (SD): msgs written %d (%d bytes), discarded %d, free space %d bytes, card present: %s",
                 loggerStatus.sdMsgWritten,
                 loggerStatus.sdBytesWritten,
                 loggerStatus.sdMsgNotWritten,
-                sd.freeClusterCount() * sd.bytesPerCluster());
+                sdCardPresent ? freeSpace : 0,
+                sdCardPresent ? "yes" : "no");
         }
 #endif
 #ifndef LOGGER_DISABLE_SPIFFS
         if (spiffsMounted) {
-            logInternal(DEBUG, "Status (SPIFFS): Msgs written %d (%d bytes), discarded %d, free space %d bytes",
+            logInternal(DEBUG, "Status (SPIFFS): msgs written %d (%d bytes), discarded %d, free space %d bytes",
                 loggerStatus.spiffsMsgWritten,
                 loggerStatus.spiffsBytesWritten,
                 loggerStatus.spiffsMsgNotWritten,
@@ -318,17 +345,6 @@ void Elog::reportStatus()
 
         maxBuffPct = 0;
         lastStatus = millis();
-    }
-
-    if (logRingBuff.percentageFull() > maxBuffPct) {
-        maxBuffPct = logRingBuff.percentageFull();
-    }
-    if (logRingBuff.percentageFull() < 50) { // When buffer under half full, we clear "full warning".
-        bufferFullWarningSent = false;
-    }
-    if (!bufferFullWarningSent && logRingBuff.isFull() && !settings.discardMsgWhenBufferFull) {
-        logInternal(WARNING, "Log Buffer was full. Please increase its size.");
-        bufferFullWarningSent = true;
     }
 }
 
@@ -431,6 +447,7 @@ void Elog::outputSerial(const LogLineEntry& logLineEntry, const char* logLineMes
 
     const char* serviceName;
     Stream* serialPtr;
+    size_t bytesWritten = 0;
 
     if (logLineEntry.internalLogMessage) {
         serviceName = "LOG";
@@ -441,13 +458,16 @@ void Elog::outputSerial(const LogLineEntry& logLineEntry, const char* logLineMes
         serialPtr = service->serialPortPtr;
     }
     getLogStamp(logLineEntry.logTime, logLineEntry.loglevel, serviceName, logStamp);
-    serialPtr->print(logStamp);
-    serialPtr->print(logLineMessage);
+    bytesWritten = serialPtr->print(logStamp);
+    bytesWritten += serialPtr->print(logLineMessage);
 
     if (strlen(logLineMessage) == settings.maxLogMessageSize - 1) {
-        serialPtr->print("...");
+        bytesWritten += serialPtr->print("...");
     }
-    serialPtr->println();
+    bytesWritten += serialPtr->println();
+
+    loggerStatus.serialMsgWritten++;
+    loggerStatus.serialBytesWritten += bytesWritten;
 }
 
 /* Attach serial logging to the Logger instance. Parameters:
@@ -462,7 +482,8 @@ void Elog::addSerialLogging(Stream& serialPort, const char* serviceName, const L
         service.serialPortPtr = &serialPort;
         service.serialServiceName = (char*)serviceName;
         service.serialWantedLoglevel = wantedLogLevel;
-        service.serialEnabled = true;
+        service.serialEnabled = true; // enabled on instance
+        serialEnabled = true; // Globally enabled, when just one instance has it enabled
     } else {
         logInternal(ERROR, "You can only add serial logging once");
     }
@@ -559,7 +580,7 @@ void Elog::addToRingbuffer(const LogLineEntry& logLineEntry, const char* logLine
 /*  This should be called to set up logging to spiffs flash memory. Parameters:
     spiffsSyncEvery: How often the dirty cache is written to filesystem. (def 5sek). Longer is better performance, but you can loose data
     spiffsCheckSpaceEvery: How often free disk space is checked to do cleanups. This takes performance - not too often (def 20sek)
-    spiffsMinimumSpace: When disk space is checked, we want to remove old logs until we have this free (def 20k)
+    spiffsMinimumSpace: When disk space is checked, we want to remove old logs until we have this free (def 50k)
 */
 void Elog::configureSpiffs(uint32_t spiffsSyncEvery, uint32_t spiffsCheckSpaceEvery, uint32_t spiffsMinimumSpace)
 {
@@ -579,31 +600,34 @@ void Elog::configureSpiffs(uint32_t spiffsSyncEvery, uint32_t spiffsCheckSpaceEv
 /* Mounts spiffs and finds the next logfile for writing */
 void Elog::spiffsPrepare()
 {
+    char logNumberFileName[LOG_SPIFFS_MAX_FILENAME_LEN];
+    sprintf(logNumberFileName, "%s/lognumber.txt", LOG_SPIFFS_DIR_NAME);
+
     if (LittleFS.begin(true)) { // Format it if we fail
         logInternal(INFO, "SPIFFS mounted");
-        if (!LittleFS.exists("/logs")) {
-            logInternal(DEBUG, "Creating Logs directory on spiffs");
-            LittleFS.mkdir("/logs");
+        if (!LittleFS.exists(LOG_SPIFFS_DIR_NAME)) {
+            logInternal(DEBUG, "Creating Logs directory \"%s\" on spiffs", LOG_SPIFFS_DIR_NAME);
+            LittleFS.mkdir(LOG_SPIFFS_DIR_NAME);
         }
 
         uint16_t logNumber = 1;
 
-        File file = LittleFS.open("/lognumber.txt", FILE_READ);
+        File file = LittleFS.open(logNumberFileName, FILE_READ);
         if (file) {
             char fileContent[10];
             file.read((uint8_t*)fileContent, 10);
             logNumber = atoi(fileContent);
 
-            logInternal(DEBUG, "Read file /lognumber.txt and got log number %d", logNumber);
+            logInternal(DEBUG, "Read file \"%s\" and got log number %d", logNumberFileName, logNumber);
             file.close();
         } else {
-            logInternal(DEBUG, "No /lognumber.txt file");
+            logInternal(DEBUG, "No \"%s\" file", logNumberFileName);
             logNumber = 1; // We start from number 1 if there is no lognumber.txt file
         }
 
         // Start from the lognumber and count up until we find a directory that does not exist
         while (true) {
-            sprintf(spiffsFileName, "/logs/%05d", logNumber);
+            sprintf(spiffsFileName, "%s/%05d", LOG_SPIFFS_DIR_NAME, logNumber);
             if (!LittleFS.exists(spiffsFileName)) {
                 break;
             }
@@ -611,16 +635,17 @@ void Elog::spiffsPrepare()
         }
 
         // Save the incremented lognumber in the lognumber.txt file.
-        file = LittleFS.open("/lognumber.txt", FILE_WRITE);
-        logInternal(DEBUG, "Writing /lognumber.txt file with lognumber %d", logNumber);
+        file = LittleFS.open(logNumberFileName, FILE_WRITE);
+        logInternal(DEBUG, "Writing \"%s\" file with lognumber %d", logNumberFileName, logNumber);
         if (file) {
             file.print(logNumber);
             file.close();
         } else {
-            logInternal(ALERT, "Error writing to /lognumber.txt. No file logging!");
+            logInternal(ALERT, "Error writing to \"%s\". No file logging!", logNumberFileName);
         }
 
         spiffsMounted = true;
+        spiffsDateFileWritten = false;
     } else {
         logInternal(ERROR, "Failed to mount SPIFFS. No logging will be done to SPIFFS");
     }
@@ -634,7 +659,6 @@ void Elog::outputSpiffs(const LogLineEntry& logLineEntry, const char* logLineMes
 
     static char logStamp[50];
     const char* serviceName;
-    static uint32_t lastFlushTime = 0;
 
     LogService* service = logLineEntry.service;
     serviceName = service->spiffsServiceName;
@@ -643,6 +667,7 @@ void Elog::outputSpiffs(const LogLineEntry& logLineEntry, const char* logLineMes
     if (!spiffsFileHandle) {
         logInternal(INFO, "Apending to spiffs file \"%s\"", spiffsFileName);
         spiffsFileHandle = LittleFS.open(spiffsFileName, FILE_APPEND);
+        spiffsDateFileWritten = false;
     }
 
     size_t expectedBytes = strlen(logStamp) + strlen(logLineMessage) + 2; // 2 chars for endline
@@ -666,38 +691,91 @@ void Elog::outputSpiffs(const LogLineEntry& logLineEntry, const char* logLineMes
             loggerStatus.spiffsBytesWritten += bytesWritten;
         }
 
-        if (millis() - lastFlushTime > settings.spiffsSyncEvery) {
-            logInternal(DEBUG, "Syncronizing spiffs logfile. Writing dirty cache");
-            spiffsFileHandle.flush();
-            lastFlushTime = millis();
-        }
+        spiffsFlush();
+        spiffsWriteDateFile();
     } else {
         logInternal(WARNING, "Could not append to spiffs log file %s", spiffsFileName);
+    }
+}
+
+/* If we have real time provided then it is written to file /log/0000x.dat
+   It's the timestamp that is shown when the log files are listed with spiffsListLogFiles() */
+void Elog::spiffsWriteDateFile()
+{
+    if (!spiffsDateFileWritten && providedTimeAtMillis > 0) {
+        char spiffsDateFileName[LOG_SPIFFS_MAX_FILENAME_LEN];
+        sprintf(spiffsDateFileName, "%s.dat", spiffsFileName);
+        File datefile = LittleFS.open(spiffsDateFileName, FILE_WRITE);
+        if (datefile) {
+            logInternal(DEBUG, "Writing date file for log \"%s\"", spiffsFileName);
+            char dateStr[25];
+            getTimeStringReal(millis(), dateStr);
+            datefile.print(dateStr);
+            datefile.flush();
+            datefile.close();
+        } else {
+            logInternal(WARNING, "Could not write date file for log \"%a\"", spiffsFileName);
+        }
+        spiffsDateFileWritten = true; // One attempt. If we cant write it, dont try again.
+    }
+}
+
+/* Regularly flushes the dirty cache and forces writing to actual FS
+   Can be called as often as you want */
+void Elog::spiffsFlush()
+{
+    static uint32_t lastFlushTime = 0;
+
+    if (millis() - lastFlushTime > settings.spiffsSyncEvery) {
+        logInternal(DEBUG, "Syncronizing spiffs logfile. Writing dirty cache");
+        spiffsFileHandle.flush();
+        lastFlushTime = millis();
     }
 }
 
 /* Every 10 seconds we check the space on spiffs. This is time consuming, thats why we do it rarely
    If we have less than 20k free space, then the oldest log files are removed until we have more
    than 20k free again.
-   When filesystem gets full deleting seems to crash the esp. */
+   By setting checkImmediately to true, it will check now. This is done when we have a write error */
 void Elog::spiffsEnsureFreeSpace(bool checkImmediately)
 {
     static uint32_t lastStatus = 0;
 
     if (checkImmediately || (millis() - lastStatus > settings.spiffsCheckSpaceEvery)) {
         logInternal(DEBUG, "Checking diskspace on spiffs");
-        File root = LittleFS.open("/logs");
-        File file = root.openNextFile();
 
+        // Continue until we have the minimum space we want
         while ((LittleFS.totalBytes() - LittleFS.usedBytes()) < settings.spiffsMinimumSpace) {
             spiffsFileHandle.close(); // Close our open file, just in case we are deleting ourself
-            char filename[30];
-            sprintf(filename, "/logs/%s", file.name());
-            logInternal(WARNING, "Deleting log file \"%s\" to free space", filename);
-            file = root.openNextFile();
-            LittleFS.remove(filename);
+
+            // Just get the first log file on filesystem
+            File root = LittleFS.open(LOG_SPIFFS_DIR_NAME);
+            File file = root.openNextFile();
+            while (strlen(file.name()) != 5) { // Search for logfile (always 5 chars long names)
+                file = root.openNextFile();
+            }
+            uint16_t lognumber = atoi(file.name());
+            file.close();
+            root.close();
+
+            spiffsLogDelete(lognumber); // And delete it.
         }
         lastStatus = millis();
+    }
+}
+
+/* Deletes a logfile and the corresponding date file if they exist */
+void Elog::spiffsLogDelete(uint16_t lognumber)
+{
+    logInternal(WARNING, "Deleting log number %d to free space", lognumber);
+    char filename[LOG_SPIFFS_MAX_FILENAME_LEN];
+    sprintf(filename, "%s/%05d", LOG_SPIFFS_DIR_NAME, lognumber);
+    if (LittleFS.exists(filename)) {
+        LittleFS.remove(filename);
+    }
+    sprintf(filename, "%s/%05d.dat", LOG_SPIFFS_DIR_NAME, lognumber);
+    if (LittleFS.exists(filename)) {
+        LittleFS.remove(filename);
     }
 }
 
@@ -795,8 +873,8 @@ void Elog::spiffsFormat(Stream& serialPort)
 /* Given a filename, the file is read from spiffs and dumped to the serial terminal */
 void Elog::spiffsPrintLogFile(Stream& serialPort, const char* filename)
 {
-    char fullFilename[30];
-    sprintf(fullFilename, "/logs/%05d", atoi(filename)); // All logfiles are in format "00001"
+    char fullFilename[LOG_SPIFFS_MAX_FILENAME_LEN];
+    sprintf(fullFilename, "%s/%05d", LOG_SPIFFS_DIR_NAME, atoi(filename)); // All logfiles are in format "00001"
     File logFile = LittleFS.open(fullFilename, FILE_READ);
 
     if (!logFile) {
@@ -823,20 +901,49 @@ void Elog::spiffsPrintLogFile(Stream& serialPort, const char* filename)
     logFile.close();
 }
 
-/* List all log files with size on the spiffs */
+/* List all log files with size and date on the spiffs filesystem */
 void Elog::spiffsListLogFiles(Stream& serialPort)
 {
-    File root = LittleFS.open("/logs");
+    char dateStr[25];
+    File root = LittleFS.open(LOG_SPIFFS_DIR_NAME);
     File file = root.openNextFile();
 
     serialPort.println("List of logfiles\n----------------");
     while (file) {
-        serialPort.printf("%s (%d bytes)\n", file.name(), file.size());
+        const char* filename = file.name();
+        if (strlen(filename) == 5) { // All log files are 5 chars long 0000x
+            uint16_t lognumber = atoi(filename);
+            spiffsGetFileDate(lognumber, dateStr);
+            serialPort.printf("%s [%s] (%d bytes)\n", filename, dateStr, file.size());
+        }
         file = root.openNextFile();
     }
     uint32_t usedSpace = LittleFS.usedBytes();
     uint32_t totalSpace = LittleFS.totalBytes();
     serialPort.printf("\nSpiffs total size: %d bytes/ Used: %d bytes / Free: %d bytes / \n", totalSpace, usedSpace, totalSpace - usedSpace);
+}
+
+/* Given a lognumber this will output the date associated with the file.
+   It will be written to output.
+   Returns true if there was a date file, otherwise false */
+bool Elog::spiffsGetFileDate(uint8_t lognumber, char* output)
+{
+    String dateStr;
+
+    char spiffsDateFileName[LOG_SPIFFS_MAX_FILENAME_LEN];
+    sprintf(spiffsDateFileName, "%s/%05d.dat", LOG_SPIFFS_DIR_NAME, lognumber);
+    if (LittleFS.exists(spiffsDateFileName)) {
+        File datefile = LittleFS.open(spiffsDateFileName, FILE_READ);
+        if (datefile) {
+            dateStr = datefile.readString();
+        }
+        datefile.close();
+        strcpy(output, dateStr.c_str());
+        return true;
+    } else {
+        strcpy(output, "");
+    }
+    return false;
 }
 
 #endif
@@ -854,7 +961,7 @@ void Elog::provideTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, 
 {
     logInternal(INFO, "Real time provided");
 
-    tmElements_t tm = { second, minute, hour, 0, day, month, year - 1970 };
+    tmElements_t tm = { second, minute, hour, 0, day, month, (uint8_t)(year - 1970) };
     Elog::providedTime = makeTime(tm); // Save the provided time
     providedTimeAtMillis = millis(); // And when it was given
 }
@@ -863,15 +970,30 @@ void Elog::provideTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, 
     Return string length in chars */
 uint8_t Elog::getTimeStringReal(uint32_t milliseconds, char* output)
 {
-    static tmElements_t tm;
+    PrecisionTime pt = GetRealTime();
 
+    uint16_t length = sprintf(output, "%04d-%02d-%02d %02d:%02d:%02d %03d", pt.year, pt.month, pt.day, pt.hour, pt.minute, pt.second, pt.millisecond);
+    return length;
+}
+
+PrecisionTime Elog::GetRealTime()
+{
+    tmElements_t tm;
     uint32_t timeSinceProvided = millis() - providedTimeAtMillis; // Time in ms since real time was provided
+    uint16_t milliSeconds = timeSinceProvided % 1000;
     time_t newTime = providedTime + timeSinceProvided / 1000;
     breakTime(newTime, tm);
 
-    uint16_t milliSeconds = timeSinceProvided % 1000;
-    uint16_t length = sprintf(output, "%04d-%02d-%02d %02d:%02d:%02d %03d", tmYearToCalendar(tm.Year), tm.Month, tm.Day, tm.Hour, tm.Minute, tm.Second, milliSeconds);
-    return length;
+    PrecisionTime ptime;
+    ptime.year = tm.Year + 1970;
+    ptime.month = tm.Month;
+    ptime.day = tm.Day;
+    ptime.hour = tm.Hour;
+    ptime.minute = tm.Minute;
+    ptime.second = tm.Second;
+    ptime.millisecond = milliSeconds;
+
+    return ptime;
 }
 
 #endif

@@ -20,6 +20,9 @@
 #define LOG_MAX_HEX_STRING_LENGTH 250
 #endif
 
+#define LOG_SPIFFS_DIR_NAME "/logs"
+#define LOG_SPIFFS_MAX_FILENAME_LEN 30
+
 // Loglevels. The lower level, the more serious.
 enum Loglevel {
     EMERGENCY = 0,
@@ -101,6 +104,19 @@ struct LogStatus {
     uint32_t spiffsMsgWritten;
     uint32_t spiffsMsgNotWritten;
     uint32_t spiffsBytesWritten;
+    uint32_t serialMsgWritten;
+    uint32_t serialBytesWritten;
+};
+
+/* Structure for holding the real human time with millisecond precision */
+struct PrecisionTime {
+    uint16_t millisecond;
+    uint8_t second;
+    uint8_t minute;
+    uint8_t hour;
+    uint8_t day;
+    uint8_t month;
+    uint16_t year;
 };
 
 /* The ringbuffer thats is used for buffering data for both serial and filesystem
@@ -140,6 +156,7 @@ private:
     static bool writerTaskHold; // If you want to pause the writerTask, set this to true.
 
     LogService service; // All instance info about sd, spiffs, serial, loglevel is stored here
+    static bool serialEnabled; // When some serial is added to an instance this is true. Used for reporting
 
     static LogRingBuff logRingBuff; // Our ringbuffer that stores all log messages
     static LogSettings settings; // Global settings for this library
@@ -168,13 +185,18 @@ private:
     static bool spiffsConfigured;
     static bool spiffsMounted; // True when spiffs is mounted
     static char spiffsFileName[30]; // The filename of the current log file
+    static bool spiffsDateFileWritten;
 
     static void spiffsPrepare();
     static void spiffsListLogFiles(Stream& serialPort);
     static bool spiffsProcessCommand(Stream& serialPort, const char* command);
     static void spiffsPrintLogFile(Stream& serialPort, const char* filename);
     static void spiffsFormat(Stream& serialPort);
+    static void spiffsFlush();
+    static void spiffsWriteDateFile();
     static void spiffsEnsureFreeSpace(bool checkImmediately = false);
+    static bool spiffsGetFileDate(uint8_t lognumber, char* output);
+    static void spiffsLogDelete(uint16_t lognumber);
 #endif
 
 #ifndef LOGGER_DISABLE_SD
@@ -194,7 +216,7 @@ private:
     static void createLogFileIfClosed(LogService* service);
     static void reconnectSd();
     static void closeAllFiles();
-    static void syncAllSdFiles();
+    static void sdSyncAllFiles();
     static void outputSd(LogLineEntry& logLineEntry, char* logLineMessage);
 #endif
 
@@ -203,6 +225,7 @@ protected:
     static uint8_t getTimeString(uint32_t milliSeconds, char* output);
     static uint8_t getTimeStringMillis(uint32_t milliSeconds, char* output);
     static uint8_t getTimeStringReal(uint32_t milliseconds, char* output);
+    static PrecisionTime GetRealTime();
 
 public:
     Elog();
@@ -215,7 +238,7 @@ public:
         uint32_t reportStatusEvery = 5000);
 
     void addSerialLogging(Stream& serialPort, const char* serviceName, const Loglevel wantedLogLevel);
-    static void configureSpiffs(uint32_t spiffsSyncEvery = 5000, uint32_t spiffsCheckSpaceEvery = 10000, uint32_t spiffsMinimumSpace = 20000);
+    static void configureSpiffs(uint32_t spiffsSyncEvery = 5000, uint32_t spiffsCheckSpaceEvery = 10000, uint32_t spiffsMinimumSpace = 50000);
     void addSpiffsLogging(const char* serviceName, const Loglevel wantedLogLevel);
     void log(const Loglevel logLevel, const char* format, ...);
 

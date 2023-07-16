@@ -12,13 +12,7 @@ void setup()
     Serial.begin(115200);
     spi.begin(18, 19, 17, 5); // Set your pins of your card reader here.
 
-    if (!sd.begin(SdSpiConfig(5, SHARED_SPI, 400000, &spi))) {
-        Serial.println("SD card initialization failed");
-    } else {
-        Serial.println("OK");
-    }
-
-    Elog::globalSettings(100, 150, Serial, DEBUG); // We want a big buffer and internal debugging from the Elog lib.
+    Elog::globalSettings(150, 150, Serial, DEBUG); // We want a big buffer and internal debugging from the Elog lib.
     Elog::configureSd(spi, 5, 2000000); // Speed set to 2mhz. Should be ok with dupont wires.
 
     // Whatever is sent to "logger" goes both to serial and to File1
@@ -40,6 +34,6 @@ void loop()
 
         /* If this is very short, we will fill up the buffer. Needs time to empty.
            It´s not so bad. The log call will just be busy waiting. */
-        delay(500);
+        delay(1000);
     }
 }

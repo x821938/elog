@@ -10,7 +10,7 @@
 // Init static vars
 std::vector<Elog*> Elog::loggerInstances;
 LogSettings Elog::settings;
-LogStatus Elog::loggerStatus = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+LogStatus Elog::loggerStatus = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 LogRingBuff Elog::logRingBuff;
 bool Elog::writerTaskHold = false;
 bool Elog::serialEnabled = false;
@@ -44,7 +44,7 @@ SPIClass Elog::spi;
 
 /* This is called from writerTask when some data has been popped from the ringbuffer.
    We try to write the data to sd card. If not successfull, it will try to connect to the sd card and create the logfile */
-void Elog::outputSd(LogLineEntry& logLineEntry, char* logLineMessage)
+void Elog::sdOutput(LogLineEntry& logLineEntry, char* logLineMessage)
 {
     static char logStamp[40];
 
@@ -58,7 +58,7 @@ void Elog::outputSd(LogLineEntry& logLineEntry, char* logLineMessage)
                 getLogStamp(logLineEntry.logTime, logLineEntry.loglevel, logStamp);
             }
 
-            createLogFileIfClosed(svc);
+            sdCreateLogFileIfClosed(svc);
             if (svc->sdFileHandle) { // Are we working on a valid file?
                 size_t bytesWritten; // Number of bytes written should be the same as content length
                 size_t expectedBytes = strlen(logStamp) + strlen(logLineMessage) + 2; // 2 chars for endline
@@ -86,7 +86,7 @@ void Elog::outputSd(LogLineEntry& logLineEntry, char* logLineMessage)
             sdSyncAllFiles(); // Keep files synced to card periodically
         } else { // If no sd card is present, try to connect to it.
             loggerStatus.sdMsgNotWritten++;
-            reconnectSd();
+            sdReconnect();
         }
     }
 }
@@ -110,7 +110,7 @@ void Elog::configureSd(SPIClass& _spi, uint8_t _cs, uint32_t _speed, uint32_t sd
 
         logInternal(DEBUG, "Configuring filesystem");
         sdCardLastReconnect = LONG_MIN;
-        reconnectSd();
+        sdReconnect();
 
         sdConfigured = true; // This is for our writerTask. When true it will start writing to sd card.
     } else {
@@ -135,6 +135,7 @@ void Elog::addSdLogging(const char* fileName, const Loglevel wantedLogLevel, con
             service.sdOptions = options;
             service.sdEnabled = true;
             service.sdFileCreteLastTry = LONG_MIN; // This triggers log file creation immediately
+            loggerInstances.push_back(this); // Save this instance for later traversal when syncing files
         } else {
             logInternal(ERROR, "You can only add file logging once");
         }
@@ -146,7 +147,7 @@ void Elog::addSdLogging(const char* fileName, const Loglevel wantedLogLevel, con
 /*  Tries to create a logfile in our logdirectory. If it fails, the next time we will try again is after
     SD_FILE_TRY_CREATE_EVERY milliseconds.
 */
-void Elog::createLogFileIfClosed(LogService* svc)
+void Elog::sdCreateLogFileIfClosed(LogService* svc)
 {
     if (!svc->sdFileHandle) { // Only do something if we dont have a valid filehandle
         if (millis() - svc->sdFileCreteLastTry > settings.sdReconnectEvery) {
@@ -169,7 +170,7 @@ void Elog::createLogFileIfClosed(LogService* svc)
    If success on the SPI bus then lognumber.txt is opened to find the next logdir name.
    logdirs are named LOGXXXXX and are incremented. A new logdir is created and lognumber.txt is updated
    */
-void Elog::reconnectSd()
+void Elog::sdReconnect()
 {
     // Only if we are not connected, we will try to connect. Also not too often.
     if (sdCardPresent == false && millis() - sdCardLastReconnect > settings.sdReconnectEvery) {
@@ -221,7 +222,7 @@ void Elog::reconnectSd()
             if (file) {
                 file.print(sdLogNumber);
                 file.close();
-                closeAllFiles(); // If we had something opened, we need to close it.
+                sdCloseAllFiles(); // If we had something opened, we need to close it.
                 sdCardPresent = true;
             } else {
                 logInternal(ALERT, "Error writing to lognumber.txt. No file logging!");
@@ -232,7 +233,7 @@ void Elog::reconnectSd()
 
 /* Traverses all Logger instances and closes each file associated with each instnace.
    This is needed after a sd card reconnect */
-void Elog::closeAllFiles()
+void Elog::sdCloseAllFiles()
 {
     logInternal(INFO, "Resetting all logfiles");
     for (auto loggerInstance : loggerInstances) {
@@ -258,7 +259,7 @@ void Elog::sdSyncAllFiles()
             if (service->sdEnabled && service->sdFileHandle) {
 #ifndef LOGGER_DISABLE_TIME
                 if (providedTimeAtMillis > 0) {
-                    PrecisionTime pt = GetRealTime();
+                    PrecisionTime pt = getRealTime(millis());
                     service->sdFileHandle.timestamp(T_WRITE + T_CREATE, pt.year, pt.month, pt.day, pt.hour, pt.minute, pt.second);
                 }
 #endif
@@ -283,8 +284,6 @@ Elog::Elog()
     service.sdEnabled = false; // Default disabled for a new instance
     service.serialEnabled = false; // Default disabled for a new instance
     service.spiffsEnabled = false; // Default disabled for a new instance
-
-    loggerInstances.push_back(this); // Save this instance for later traversal
 }
 
 /* Reports to serial the status of the ringbuffer. It shows how many messages are written and how many are discarded
@@ -421,16 +420,16 @@ void Elog::writerTask(void* parameter)
 
         if (logRingBuff.pop(logLineEntry, logLineMessage)) {
             if (logLineEntry.logSerial) {
-                outputSerial(logLineEntry, logLineMessage);
+                serialOutput(logLineEntry, logLineMessage);
             }
 #ifndef LOGGER_DISABLE_SPIFFS
             if (spiffsMounted && logLineEntry.logSpiffs) {
-                outputSpiffs(logLineEntry, logLineMessage);
+                spiffsOutput(logLineEntry, logLineMessage);
             }
 #endif
 #ifndef LOGGER_DISABLE_SD
             if (logLineEntry.logFile) {
-                outputSd(logLineEntry, logLineMessage);
+                sdOutput(logLineEntry, logLineMessage);
             }
 #endif
         }
@@ -441,7 +440,7 @@ void Elog::writerTask(void* parameter)
 /* This is called from writerTask when some data has been popped from the ringbuffer.
    then it's written to the serial device. It just dumps the logline to the serial interface.
    It is also called from logInternal, because we want to log here without touching the buffer */
-void Elog::outputSerial(const LogLineEntry& logLineEntry, const char* logLineMessage)
+void Elog::serialOutput(const LogLineEntry& logLineEntry, const char* logLineMessage)
 {
     static char logStamp[50];
 
@@ -510,7 +509,7 @@ void Elog::logInternal(const Loglevel loglevel, const char* format, ...)
         vsnprintf(logLineMessage, settings.maxLogMessageSize, format, args); // format the string
         va_end(args); // end the list
 
-        outputSerial(logLineEntry, logLineMessage); // Not buffered output.
+        serialOutput(logLineEntry, logLineMessage); // Not buffered output.
     }
 }
 
@@ -578,14 +577,16 @@ void Elog::addToRingbuffer(const LogLineEntry& logLineEntry, const char* logLine
 #ifndef LOGGER_DISABLE_SPIFFS
 
 /*  This should be called to set up logging to spiffs flash memory. Parameters:
+    spiffsFileSplitSize: if 0 files can grow as big as possible. >0 the files will be truncated at size and a new one is created.
     spiffsSyncEvery: How often the dirty cache is written to filesystem. (def 5sek). Longer is better performance, but you can loose data
     spiffsCheckSpaceEvery: How often free disk space is checked to do cleanups. This takes performance - not too often (def 20sek)
     spiffsMinimumSpace: When disk space is checked, we want to remove old logs until we have this free (def 50k)
 */
-void Elog::configureSpiffs(uint32_t spiffsSyncEvery, uint32_t spiffsCheckSpaceEvery, uint32_t spiffsMinimumSpace)
+void Elog::configureSpiffs(uint32_t spiffsFileSplitSize, uint32_t spiffsSyncEvery, uint32_t spiffsCheckSpaceEvery, uint32_t spiffsMinimumSpace)
 {
     if (!spiffsConfigured) {
         logInternal(DEBUG, "Configuring spiffs");
+        settings.spiffsFileSplitSize = spiffsFileSplitSize;
         settings.spiffsSyncEvery = spiffsSyncEvery;
         settings.spiffsCheckSpaceEvery = spiffsCheckSpaceEvery;
         settings.spiffsMinimumSpace = spiffsMinimumSpace;
@@ -646,6 +647,7 @@ void Elog::spiffsPrepare()
 
         spiffsMounted = true;
         spiffsDateFileWritten = false;
+        loggerStatus.spiffsBytesCurrentFile = 0;
     } else {
         logInternal(ERROR, "Failed to mount SPIFFS. No logging will be done to SPIFFS");
     }
@@ -653,7 +655,7 @@ void Elog::spiffsPrepare()
 
 /* This is called from writerTask when some data has been popped from the ringbuffer.
    then it's written to the spiffs filesystem. It just dumps the logline to the current spiffs logfile. */
-void Elog::outputSpiffs(const LogLineEntry& logLineEntry, const char* logLineMessage)
+void Elog::spiffsOutput(const LogLineEntry& logLineEntry, const char* logLineMessage)
 {
     spiffsEnsureFreeSpace();
 
@@ -689,12 +691,27 @@ void Elog::outputSpiffs(const LogLineEntry& logLineEntry, const char* logLineMes
         } else {
             loggerStatus.spiffsMsgWritten++;
             loggerStatus.spiffsBytesWritten += bytesWritten;
+            loggerStatus.spiffsBytesCurrentFile += bytesWritten;
         }
 
         spiffsFlush();
         spiffsWriteDateFile();
+        spiffsSplitFile();
     } else {
         logInternal(WARNING, "Could not append to spiffs log file %s", spiffsFileName);
+    }
+}
+
+/* Checks if the file is big enough for splitting. If it is the current filehandle is closed
+   and we get a new filename and handle */
+void Elog::spiffsSplitFile()
+{
+    if (settings.spiffsFileSplitSize > 0) { // We want files split
+        if (loggerStatus.spiffsBytesCurrentFile + settings.maxLogMessageSize > settings.spiffsFileSplitSize) {
+            logInternal(INFO, "Spiffs file reached the splitsize of %d bytes", settings.spiffsFileSplitSize);
+            spiffsFileHandle.close(); // close current file
+            spiffsPrepare();
+        }
     }
 }
 
@@ -970,16 +987,16 @@ void Elog::provideTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, 
     Return string length in chars */
 uint8_t Elog::getTimeStringReal(uint32_t milliseconds, char* output)
 {
-    PrecisionTime pt = GetRealTime();
+    PrecisionTime pt = getRealTime(milliseconds);
 
     uint16_t length = sprintf(output, "%04d-%02d-%02d %02d:%02d:%02d %03d", pt.year, pt.month, pt.day, pt.hour, pt.minute, pt.second, pt.millisecond);
     return length;
 }
 
-PrecisionTime Elog::GetRealTime()
+PrecisionTime Elog::getRealTime(uint32_t milliseconds)
 {
     tmElements_t tm;
-    uint32_t timeSinceProvided = millis() - providedTimeAtMillis; // Time in ms since real time was provided
+    uint32_t timeSinceProvided = milliseconds - providedTimeAtMillis; // Time in ms since real time was provided
     uint16_t milliSeconds = timeSinceProvided % 1000;
     time_t newTime = providedTime + timeSinceProvided / 1000;
     breakTime(newTime, tm);

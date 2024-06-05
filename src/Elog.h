@@ -80,6 +80,7 @@ struct LogSettings {
     uint32_t spiffsSyncEvery;
     uint32_t spiffsCheckSpaceEvery;
     uint32_t spiffsMinimumSpace;
+    uint32_t spiffsFileSplitSize;
 };
 
 /* Structure that is written to the ringbuffer. It gives the WriterTask all the information
@@ -104,6 +105,7 @@ struct LogStatus {
     uint32_t spiffsMsgWritten;
     uint32_t spiffsMsgNotWritten;
     uint32_t spiffsBytesWritten;
+    uint32_t spiffsBytesCurrentFile;
     uint32_t serialMsgWritten;
     uint32_t serialBytesWritten;
 };
@@ -163,8 +165,8 @@ private:
     static LogStatus loggerStatus; // Status for logging
 
     static void writerTask(void* parameter);
-    static void outputSerial(const LogLineEntry& logLineEntry, const char* logLineMessage);
-    static void outputSpiffs(const LogLineEntry& logLineEntry, const char* logLineMessage);
+    static void serialOutput(const LogLineEntry& logLineEntry, const char* logLineMessage);
+    static void spiffsOutput(const LogLineEntry& logLineEntry, const char* logLineMessage);
 
     static void getLogStamp(const uint32_t logTime, const Loglevel loglevel, char* output);
     static void getLogStamp(const uint32_t logTime, const Loglevel loglevel, const char* service, char* output);
@@ -197,6 +199,7 @@ private:
     static void spiffsEnsureFreeSpace(bool checkImmediately = false);
     static bool spiffsGetFileDate(uint8_t lognumber, char* output);
     static void spiffsLogDelete(uint16_t lognumber);
+    static void spiffsSplitFile();
 #endif
 
 #ifndef LOGGER_DISABLE_SD
@@ -213,11 +216,11 @@ private:
 
     static SdFat sd;
     static SPIClass spi;
-    static void createLogFileIfClosed(LogService* service);
-    static void reconnectSd();
-    static void closeAllFiles();
+    static void sdCreateLogFileIfClosed(LogService* service);
+    static void sdReconnect();
+    static void sdCloseAllFiles();
     static void sdSyncAllFiles();
-    static void outputSd(LogLineEntry& logLineEntry, char* logLineMessage);
+    static void sdOutput(LogLineEntry& logLineEntry, char* logLineMessage);
 #endif
 
 protected:
@@ -225,7 +228,7 @@ protected:
     static uint8_t getTimeString(uint32_t milliSeconds, char* output);
     static uint8_t getTimeStringMillis(uint32_t milliSeconds, char* output);
     static uint8_t getTimeStringReal(uint32_t milliseconds, char* output);
-    static PrecisionTime GetRealTime();
+    static PrecisionTime getRealTime(uint32_t milliseconds);
 
 public:
     Elog();
@@ -238,7 +241,6 @@ public:
         uint32_t reportStatusEvery = 5000);
 
     void addSerialLogging(Stream& serialPort, const char* serviceName, const Loglevel wantedLogLevel);
-    static void configureSpiffs(uint32_t spiffsSyncEvery = 5000, uint32_t spiffsCheckSpaceEvery = 10000, uint32_t spiffsMinimumSpace = 50000);
     void addSpiffsLogging(const char* serviceName, const Loglevel wantedLogLevel);
     void log(const Loglevel logLevel, const char* format, ...);
 
@@ -249,7 +251,8 @@ public:
     static void provideTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second);
 #endif
 #ifndef LOGGER_DISABLE_SPIFFS
-    void spiffsQuery(Stream& serialPort);
+    static void spiffsQuery(Stream& serialPort);
+    static void configureSpiffs(uint32_t spiffsFileSplitSize = 0, uint32_t spiffsSyncEvery = 5000, uint32_t spiffsCheckSpaceEvery = 10000, uint32_t spiffsMinimumSpace = 50000);
 #endif
 #ifndef LOGGER_DISABLE_SD
     static void configureSd(SPIClass& spi, uint8_t cs, uint32_t speed = 2000000, uint32_t sdReconnectEvery = 5000, uint32_t sdSyncFilesEvery = 5000, uint32_t sdTryCreateFileEvery = 5000);

@@ -288,7 +288,7 @@ Elog::Elog()
 
 /* Reports to serial the status of the ringbuffer. It shows how many messages are written and how many are discarded
    because of buffer overflow. It can be called as often as you want, but it only reports every SD_REPORT_BUFFER_STATUS_EVERY ms
-   This is internal logging from this library and is logged with level DEBUG. Normal users don´t want this info
+   This is internal logging from this library and is logged with level INFO. Normal users don´t want this info
    Also Gives a warning if buffer is full. We only do this if discardMsgWhenBufferFull is false.
    If this is set to true, the user doesn´t care about lost messages. Thats why we don´t care telling him
    Also shows status for SD and SPIFFS if it is enabled */
@@ -311,20 +311,20 @@ void Elog::reportStatus()
     }
 
     if (millis() - lastStatus > settings.reportStatusEvery) {
-        logInternal(DEBUG, "Status (Buffer): msgs added %d, discarded %d, Max Buffer usage %d%%",
+        logInternal(INFO, "Status (Buffer): msgs added %d, discarded %d, Max Buffer usage %d%%",
             loggerStatus.bufferMsgAdded,
             loggerStatus.bufferMsgNotAdded,
             maxBuffPct);
 
         if (serialEnabled) {
-            logInternal(DEBUG, "Status (Serial): msgs written %d (%d bytes)",
+            logInternal(INFO, "Status (Serial): msgs written %d (%d bytes)",
                 loggerStatus.serialMsgWritten,
                 loggerStatus.serialBytesWritten);
         }
 #ifndef LOGGER_DISABLE_SD
         if (sdConfigured) {
             uint32_t freeSpace = sd.freeClusterCount() * sd.bytesPerCluster();
-            logInternal(DEBUG, "Status (SD): msgs written %d (%d bytes), discarded %d, free space %d bytes, card present: %s",
+            logInternal(INFO, "Status (SD): msgs written %d (%d bytes), discarded %d, free space %d bytes, card present: %s",
                 loggerStatus.sdMsgWritten,
                 loggerStatus.sdBytesWritten,
                 loggerStatus.sdMsgNotWritten,
@@ -334,7 +334,7 @@ void Elog::reportStatus()
 #endif
 #ifndef LOGGER_DISABLE_SPIFFS
         if (spiffsMounted) {
-            logInternal(DEBUG, "Status (SPIFFS): msgs written %d (%d bytes), discarded %d, free space %d bytes",
+            logInternal(INFO, "Status (SPIFFS): msgs written %d (%d bytes), discarded %d, free space %d bytes",
                 loggerStatus.spiffsMsgWritten,
                 loggerStatus.spiffsBytesWritten,
                 loggerStatus.spiffsMsgNotWritten,

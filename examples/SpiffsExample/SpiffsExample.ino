@@ -1,46 +1,58 @@
-/* Dont let this sketch run for days on your ESP. It's writing to internal flash!
-
-   There is about 100000 write cycles before your device starts failing.
-   With this sketch it will fill up the flash in about 8 minutes. Then it will
-   delete the logfile and start again.
-
-   Local flash is ok for logging if it's not too extensive.
-
-   In console press any key, and you can review the logs on the flash */
-
 #include <Elog.h>
 
-Elog elog;
-Elog logger2;
+// Define the log IDs. These are used to identify the different logfiles
+#define MAIN 0
+#define SUB_COUNTER 1
+#define HEX_LOG 2
+
+uint32_t mainCounter = 0;
+void getRandomString(char* str, int maxLength); // declaration
 
 void setup()
 {
     Serial.begin(115200);
 
-    Elog::globalSettings(150, 150); // We want a big buffer!
-    Elog::configureSpiffs(); // Must be done before adding spiffs logging;
+    // If you want to see the internal logs from the elog library, uncomment the line below
+    // logger.configureInternalLogging(Serial, DEBUG, 60000);
 
-    elog.addSpiffsLogging("spf", DEBUG); // All logging to "logger" goes to spiffs
+    logger.configure(100, true); // Big buffer
 
-    logger2.addSerialLogging(Serial, "Main", DEBUG); // All logging to "logger2" goes to serial
-    logger2.addSpiffsLogging("2nd", DEBUG); // Also all logging to "logger2" goes to spiffs
+    // Register some log IDs for logging
+    logger.registerSerial(MAIN, DEBUG, "COUNT", Serial);
+    logger.registerSpiffs(MAIN, DEBUG, "main");
+    logger.registerSpiffs(SUB_COUNTER, ERROR, "subcount"); // We only want to log errors
+    logger.registerSpiffs(HEX_LOG, DEBUG, "hex");
+
+    // Simulate the time by providing a fixed time to the RTC (You can also use the NTP time)
+    logger.provideTime(2023, 7, 31, 10, 12, 51);
+
+    // This enables the query mode. The query mode allows you to send commands to the device. Press space to enter the command mode
+    logger.enableQuery(Serial);
+
+    logger.log(MAIN, INFO, "Setup completed. Press space to enter the command mode and view the logs");
 }
 
 void loop()
 {
-    for (uint32_t bigCounter = 0; bigCounter < 10000000; bigCounter++) {
-        logger2.log(NOTICE, "Big counter is %d. At any time send a char to serial terminal to see the spiffs logs...", bigCounter); // Goes to serial
-        for (uint8_t smallCounter = 0; smallCounter < 100; smallCounter++) {
-            // Here we make a fast burst of 100 log messages... Should be consumed by our buffer
-            elog.log(INFO, "Big counter is %d, small counter=%d", bigCounter, smallCounter); // Goes to spiffs
-        }
-
-        logger2.log(DEBUG, "We wait 5 seconds to give spiffs time to write the content of the buffer.");
-        uint32_t t = millis();
-        while (millis() - t < 5000) {
-            if (Serial.available()) { // Press any key on serial console to be able to dump the logs.
-                Elog::spiffsQuery(Serial);
-            }
-        }
+    char randomString[50];
+    for (long subCounter = 0; subCounter < 40; subCounter++) { // Fast burst of data to almost fill the buffer
+        getRandomString(randomString, sizeof(randomString));
+        uint8_t randomLogLevel = random(0, 8);
+        logger.logHex(HEX_LOG, DEBUG, "HEX:", (uint8_t*)randomString, strlen(randomString));
+        logger.log(SUB_COUNTER, randomLogLevel, "Main Counter: %d, Subcounter: %d, random string: %s", mainCounter, subCounter, randomString);
     }
+    logger.log(MAIN, INFO, "Main Counter: %d", mainCounter);
+
+    mainCounter++;
+    delay(10000);
+}
+
+// Returns a random string with a random length, just to simulate some data
+void getRandomString(char* str, int maxLength)
+{
+    int length = random(1, maxLength);
+    for (int strCount = 0; strCount < length; strCount++) {
+        str[strCount] = char(random(65, 91));
+    }
+    str[length] = '\0';
 }

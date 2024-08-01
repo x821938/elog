@@ -1,34 +1,65 @@
+#include <Arduino.h>
 #include <Elog.h>
-#include <Etimer.h>
+#include <LogTimer.h>
 
-Elog elog;
-Etimer timer("Timer1", elog, 20); // 20 lapses max on this timer
+#define LOG_TIMER 0
+#define LOG_TEST 1
+#define TIMER1 0
+#define TIMER_TOTAL 1
+
+void loggedNo();
+void loggedYes();
+void loggedYesBufferFull();
 
 void setup()
 {
     Serial.begin(115200);
-    Elog::globalSettings(200, 10, Serial, DEBUG); // Small buffer of 10 messages. We want internal logging from library
-    elog.addSerialLogging(Serial, "Main", INFO); // Enable serial logging
+
+    logger.configure(50, true); // Logbuffer max 50 lines. Wait if buffer full.
+    timer.configure(5, 50); // 5 timers, 20 laps each
+    logger.registerSerial(LOG_TIMER, DEBUG, "TIMER");
+    logger.registerSerial(LOG_TEST, ERROR, "OUTPUT", Serial2);
 }
 
 void loop()
 {
-    elog.log(INFO, "Now we push the buffer to the limit by sending a fast burst of log message in a short time");
-    timer.start();
-    for (uint8_t lap = 1; lap <= 20; lap++) { // This will fill the buffer at some point
-        timer.lap();
-        elog.log(INFO, "Lap number = %d", lap);
+    timer.start(TIMER_TOTAL);
+    loggedNo();
+    loggedYes();
+    loggedYesBufferFull();
+    timer.show(TIMER_TOTAL, LOG_TIMER, ALERT, "Total time all 3 tasks");
+}
+
+void loggedYesBufferFull()
+{
+    logger.log(LOG_TIMER, INFO, "Timer starting. Logging 1000 times with ERROR level. Should be logged. But exceeding buffer size. Should be slower");
+    timer.start(TIMER1);
+    for (int i = 0; i < 1000; i++) {
+        logger.log(LOG_TEST, ERROR, "Lap %d", i); // Should  be logged to Serial2
     }
-    timer.show(); // Have a look at the times. Its fast when buffer is not full
+    timer.show(TIMER1, LOG_TIMER, NOTICE, "LoggedYesBufferFull");
+}
 
-    delay(5000);
-
-    elog.log(INFO, "Now we log something 100 times that is never logged because of loglevel. Should be fast!");
-    timer.start();
-    for (uint8_t lap = 1; lap <= 100; lap++) {
-        elog.log(DEBUG, "This message is never showed");
+void loggedYes()
+{
+    logger.log(LOG_TIMER, INFO, "Timer starting. Logging 10 times with ERROR level. Should be logged.");
+    timer.start(TIMER1);
+    for (int i = 0; i < 10; i++) {
+        logger.log(LOG_TEST, ERROR, "Lap %d", i); // Should  be logged to Serial2
+        timer.lap(TIMER1);
     }
-    timer.show();
-
+    timer.show(TIMER1, LOG_TIMER, NOTICE, "LoggedYes");
     delay(5000);
+}
+
+void loggedNo()
+{
+    logger.log(LOG_TIMER, INFO, "Timer starting. Logging 1000 times with DEBUG level. Should not be logged.");
+    timer.start(TIMER1);
+    for (int i = 0; i < 1000; i++) {
+        logger.log(LOG_TEST, DEBUG, "Lap %d", i); // Should not be logged, is under ERROR level
+    }
+    timer.show(TIMER1, LOG_TIMER, NOTICE, "LoggedNo");
+    delay(5000);
+    vTaskDelay(5000);
 }

@@ -1,6 +1,6 @@
 {
     "name": "Elog",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "description": "The ultimate logger for ESP32! An extremely fast and efficient logger for esp32. All logging is buffered. Logging takes few microseconds. Dependencies: adafruit/SdFat if you want logging for sd card",
     "keywords": "log, logging, logger, loglevel, debug, serial, elog, sd, file, ESP32",
     "repository": {

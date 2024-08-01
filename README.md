@@ -1,171 +1,316 @@
-# Ultimate ESP logger (Elog)
-## Main features:
-This library was created to do easy an super efficient logging from your Arduino ESP32 programs. It uses a ringbuffer to handle logging extremely fast. This means that you can leave the log statements in your code with pretty much no performance impact!
-- Log to any Serial (0, 1, 2 or soft serial)
-- Log to SD-card
-- Log to internal SPIFFS flash memory in ESP32
-- Multiple log output
-- SD-card hotplug. You can just eject it and reinsert it. Logging will continue.
-- Very fast logging with no busy waiting!
-- Buffered output to both serial or SD-card
-- Timing helpers to measure performance of your code
+# ElogPlus Library
 
- ### Log output example:
-```
-000:00:09:41:536 [MAI] [INFO ] : ECEF: X=350075848.43, Y=52893867.26, Z=528754469.13, Accuracy=8667.2
-000:00:09:41:538 [MAI] [INFO ] : HP Lat: 56.32148122, Lon: 8.39157915, Height: 78.7636, HeightMSL: 35.2965, vAcc: 7314.9, hAcc: 4649.0
-000:00:09:41:547 [UBX] [NOTIC] : Survey-in. Active=0, Valid=0, Duration=0s, Accuracy=0, MeanX=0, MeanY=0, MeanZ=0
-000:00:09:41:572 [UBX] [INFO ] : Feeding RTCM frame ID=1005, length=25 to GPS
-000:00:09:41:577 [UBX] [INFO ] : Feeding RTCM frame ID=1074, length=129 to GPS
-000:00:09:42:467 [LOG] [DEBUG] : Msg buffered = 23482, SD written = 23482, discarded = 0, Max Buffer usage = 31%
-000:00:09:42:538 [LOG] [DEBUG] : Syncronizing all logfiles. Writing dirty cache
- ```
-## Description
+The ElogPlus library is a powerful library for logging and monitoring events in your arduino ESP32 applications.
 
-You can log to any serial device or any file on a SD-card. It can handle multiple outputs very easily.
-This library supports HOTPLUGGING the SD-card. Filesystem is flushed every 5 seconds, so you will maximum loose 5 sec of data if you eject the card.
+**Key features of the ElogPlus library include:**
 
-A log statement that is filtered out and never sent to a log device takes about 1-2 microseconds! A typical log statement with 40 chars takes about 10 microseconds. All this is possible because of the buffering. If you have time sensitive applications you can still log without affecting the timings much!
+- Output to one or more devices: spiffs, sd card, syslog or serial.
+- Each message can be given a log level (DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY).
+- Super fast logging
+  1.  Logging is fast because messages are queued in your app, and then handled later in background by the logging library
+  1.  If a message is not outputted it takes around 0.5 μs
+  1.  If a message is outputted it typically takes around 25 μs.
+- Automatic delete oldest logfiles on SD or SPIFFS if it runs out of space.
+- Stamping each log message with real time (from eg. NTP)
+- Internal file browser/viewer for looking at logs even when your code is running.
+- A timer to time your code down to the microseconds.
 
-You can create different log instances for different places in your code. Each instance can be configured with different output and target log levels.
+## Simple usage example
 
-## Log levels
-Logging can be logged at different levels.
-
-- EMERGENCY
-- ALERT
-- CRITICAL
-- ERROR
-- WARNING
-- NOTICE
-- INFO
-- DEBUG
-
- The lowest level is EMERGENCY and the highest is DEBUG.
- Every time you log something you give it a loglevel.
-
- When you create your log instance and set your outputs you also set the target log level. Everything logged with lower or equal level than the target level will be outputted.
-
- ## Basic usage
- 
- If you use Arduino IDE you need to install the dependency "SdFat - Adafruit fork" for this to work. If you use PlatformIO the dependency will automatically be installed.
-
- First you need to create an instance of your logger:
- ```
- #include <ELog.h>
-Elog mylog;
- ```
-Then you need to specify where the output of the logging should go and what our target loglevel is. We also give it a servicename. That is a label that is attached to each log message.
- ```
-mylog.addSerialLogging(Serial, "Main", DEBUG);
- ```
-Now you can do some logging in your application:
-```
-myLog.log(INFO, "Hello! Variable x is %d", x); 
-```
-Here your can use the normal printf format for your messages. (eg: %d %s %f)
-
-## SD card logging
-If you want to log to SD-card you need a litle more bootstrapping.
-```
-SPIClass spi = SPIClass(VSPI); // Prepare the spi bus for talking to card reader
-Elog myLog; // Create a log instance
-
-void setup()
-{
-    spi.begin(18, 19, 17, 5); // Set your pins of your card reader here.
-    Elog::configureSd(spi, 5, 2000000); // Speed set to 2mhz. Should be ok with dupont wires.
-    myLog.addSdLogging("File1", DEBUG);
-
-    myLog.log(INFO, "Hello! Variable x is %d", x); 
-}
-```
-Each time the ESP is restarted a new folder is created in the root of the SD-card. It will be in format LOG00001 and will be incremented at each restart. All files created by all your log instances will be placed under this folder. The filenames are defined when you run addFileLogging().
-
-## SPIFFS logging
-You can log to the internal flash memory of the ESP32! The main problem is getting the logs out of your board. To do this i included a serial command line interface (CLI), where you can list all log files and dump them to serial.
-
-Again you need a little bootstrapping to get SPIFFS logging going:
-```
-Elog myLog; // Create a log instance
-void setup()
-{
-    Elog::configureSpiffs();
-    myLog.addSpiffsLogging("svc", DEBUG);
-    myLog.log(INFO, "Hello! Variable x is %d", x); 
-}
-```
-Checkout the example that shows usage of SPIFFS logging. When you want to see the logs call:
-```
-myLog.spiffsQuery(Serial);
-```
-You have to include this somehow in your code. It could be triggered by a digital input, or you could listen on the serial port, like in the provided example.
-
-In the CLI you have these commands available:
-- "L" can list the logs on the SPIFFS filesystem,
-- "P" can print a logfile. Provide your log number like: "P 123", 
-- "F" Format the filesystem with "F"
-- "Q" Quit and return to your code again.
-
-If printing very long logs you can pause it by pressing SPACE. You can also abort by pressing Q.
-
-## Real human times in logs:
-If you want some real time stamps on your log entries you can provide the time for the library. Your output could look like this:
-```
-2023-07-15 08:25:09 577 [MAI] [INFO ] : ECEF: X=350075848.43, Y=52893867.26, Z=528754469.13, Accuracy=8667.2
-2023-07-15 08:25:10 584 [MAI] [INFO ] : HP Lat: 56.32148122, Lon: 8.39157915, Height: 78.7636, HeightMSL: 35.2965
-2023-07-15 08:25:12 598 [UBX] [NOTIC] : Survey-in. Active=0, Valid=0, Duration=0s, Accuracy=0, MeanX=0, MeanY=0, MeanZ=0
-2023-07-15 08:25:14 612 [UBX] [INFO ] : Feeding RTCM frame ID=1005, length=25 to GPS
-2023-07-15 08:25:15 619 [UBX] [INFO ] : Feeding RTCM frame ID=1074, length=129 to GPS
-2023-07-15 08:25:17 633 [LOG] [DEBUG] : Msg buffered = 23482, SD written = 23482, discarded = 0, Max Buffer usage = 31%
-2023-07-15 08:25:17 843 [LOG] [DEBUG] : Syncronizing all logfiles. Writing dirty cache
- ```
-There are so many ways of getting real time. RTC clock, GPS, NTP etc. The only thing you need to do is to give the time to Elog:
- ```
-Elog::provideTime(2023, 7, 15, 8, 12, 34);  // We make up the time: 15th of july 2023 at 08:12:34
- ```
-You can regularly provide the time. The esp is a few seconds wrong each day, so you can correct it when needed. 
-**If you provide time your files on SD-card and the SPIFFS will be correctly stamped!** This makes it much easier to find the correct logfile.
-
-## Configuration
-If you dont like the default settings you can run this static method in the beginning of the code. It must be called before adding serial or file logging to your instance.
-```
-Elog::globalSettings(100, 150, Serial, DEBUG);
-```
-The parameters are in this order:
-
-- **maxLogMessageSize** = Maximum characters of the logmesage (default 250)
-- **maxLogMessages** = Size of the buffer. How many messages to hold. (default 20)
-- **internalLogDevice** = When this library output internal messages, where should it go (default Serial)
-- **internalLogLevel** = Internal messages from this library is only shown equal to or below this level (default WARNING)
-- **discardMsgWhenBufferFull** = If true all messages will be discarded if the buffer is full. If your application is time sensitive you might want to do this (default false)
-- **reportStatusEvery** = Regularly an internal buffer status is show every (default 5000 ms)
-
-Remember memoryusage is maxLogMessageSize x maxLogMessages! Dont reserve more than needed
-
-# Timer helpers (Etimer)
-Somtimes you need to check how fast your code is. This library comes with a timer class for doing this.
-Again the focus is on speed. Starting, lapsing or stopping the timer takes less than 1 microsecond! 
-Here is a small example to get you started. Look in the examples folder for more information.
+First of all you need to decide where your logs should go. Most users will start with serial, but you have the options of spiffs(internal EEPROM of the esp32), SD-card and Syslog.
+Then you decide a log Id for that logging. If you use this Id many places in your code it's a good idea to define it somewhere globally:
 
 ```
-#include <ELog.h>
-#include <Etimer.h>
+#include <Elog.h>
+#define MYLOG 0
+```
 
-Elog elog;
-Etimer timer("Timer1", elog, 20); // 20 lapses max on this timer
+The you register your log Id in order to start logging to it. This will often be done in setup():
 
+```
 void setup()
 {
     Serial.begin(115200);
-    elog.addSerialLogging(Serial, "Main", INFO);
-
-    timer.start();
-    for (uint8_t lap = 1; lap <= 20; lap++) {
-        timer.lap();
-        elog.log(INFO, "Lap number = %d", lap);
-        delay(15);
-    }
-    timer.show(); 
+    logger.registerSerial(MYLOG, DEBUG, "tst"); // We want messages with DEBUG level and lower
 }
 ```
+
+Then inside your code you can send messages to the serial port.
+
+```
+void loop()
+{
+    for (int i = 0; i < 1000; i++) {
+        logger.log(MYLOG, DEBUG, "Counter is %d", i);
+        if (i % 10 == 0) {
+            logger.log(MYLOG, NOTICE, "Counter divisible by 10");
+        }
+        delay(500);
+    }
+}
+```
+
+Output:
+
+```
+000:00:00:00:047 [TST] [DEBUG] Counter is 0
+000:00:00:00:047 [TST] [NOTIC] Counter divisible by 10
+000:00:00:00:547 [TST] [DEBUG] Counter is 1
+000:00:00:01:047 [TST] [DEBUG] Counter is 2
+000:00:00:01:547 [TST] [DEBUG] Counter is 3
+000:00:00:02:047 [TST] [DEBUG] Counter is 4
+```
+
+## Loglevels
+
+The log levels in the ElogPlus library are as follows:
+
+- 7: DEBUG: Used for detailed debugging information. Typically used during development and not in production.
+- 6: INFO: Used to provide general information about the application's execution. Helpful for tracking the flow of the program.
+- 5: NOTICE: Used to highlight noteworthy events or conditions that may require attention.
+- 4: WARNING: Used to indicate potential issues or situations that could lead to errors or unexpected behavior.
+- 3: ERROR: Used to report errors that occurred during the execution of the application. These errors may impact the functionality of the program.
+- 2: CRITICAL: Used to indicate critical errors that require immediate attention. These errors may lead to the termination of the application.
+- 1: ALERT: Used to indicate critical errors that require immediate attention. These errors may lead to the termination of the application.
+- 0: EMERGENCY: Used to indicate critical errors that require immediate attention. These errors may lead to the termination of the application.
+
+The lower the level, the more serious the log line is.
+When registring a log id you alway tell what loglevel you want. Everything at that level and lower will be logged. So if you register a device with loglevel ERROR, you will on get messages logged at level ERROR, CRITICAL, ALERT and EMERGENCY.
+
+# Output devices
+
+#### Serial logging
+
+This is the most simple form of using the logger. You register a handle and send a log message:
+
+```
+#define MYLOG 0
+logger.registerSerial(MYLOG, DEBUG, "tst");
+logger.log(MYLOG, INFO, "Here is a message");
+```
+
+The service name is "tst". It will always be upper cased and truncated to 3 chars when outputted.
+
+In this case all logleves equal to or lower than DEBUG is sent to serial. This will be the output will look like this:
+
+```
+000:00:00:00:047 [TST] [INFO ] Here is a message
+```
+
+#### SD card logging
+
+Logging to a SD-card can be done by configuring SPI for the cardreader and register a loghandle for logging:
+
+```
+#define MYLOG 0
+
+#include <SPI.h>
+SPIClass spi = SPIClass(SPI);
+spi.begin(18, 19, 23, 5); // Set your pins of your card reader here. SCK=19, MISO=19, MOSI=23, SS=5
+logger.configureSd(spi, 5, 2000000); // SS pin 5, bus speed = 2Mhz
+logger.registerSd(INFO, DEBUG, "mylog");
+
+logger.log(MYLOG, INFO, "Here is a message");
+```
+
+Every time the ESP is booted a new directory on the SD-card is created. The folder name is in format 0001 and is increased on every boot. In this example the first logfile is called mylog.001. When the file reaches the size of 100Kb a new file named mylog.002 will be created. If you want another max size of the logfile use:
+
+```
+logger.registerSd(MYLOG, INFO, "mylog", FLAG_NONE, 20000);
+```
+
+When registing the SD card file you decide the loglevel that should go to the file system. In this case it is loglevel equal or lower than INFO
+
+You could pop out the SD card for reading the files. This logger is pretty resistent to ejecting the card while logging. Sometimes you might experience a crash due to the sdfat library.
+
+You could also use the "Query command prompt". Read more in this help.
+
+#### SPIFFS (Internal EEPROM) logging
+
+Logging to the internal EEPROM of the ESP32 is as simple as register a loghandle
+
+```
+#define MYLOG 0
+logger.registerSpiffs(MYLOG, DEBUG, "mylog");
+logger.log(MYLOG, INFO, "Here is a message");
+```
+
+Every time the ESP is booted a new directory is created. The folder name is in format 0001 and is increased on every boot. In this example the first logfile is called mylog.001. When the file reaches the size of 100Kb a new file named mylog.002 will be created. If you want another max size of the logfile use:
+
+```
+logger.registerSpiffs(MYLOG, DEBUG, "mylog", FLAG_NONE, 20000);
+```
+
+When registing the SPIFFS you decide the loglevel that should go to the file system. In this case it is loglevel equal or lower than DEBUG
+
+The only realistic way of accessing the logfiles is using the "Query command prompt". Read more in this help.
+
+#### Syslog logging
+
+Logging to the an external syslog server is as simple as configuring the syslog host, port and then register a loghandle:
+
+```
+#define MYLOG 0
+logger.configureSyslog("192.168.1.20", 514, "esp32"); // syslog host, port and name of the esp32 device host name
+logger.registerSyslog(MYLOG, NOTICE, FAC_LOCAL4, "mylog"); // Log facility and app name that is sent to syslog server
+logger.log(MYLOG, ERROR, "Here is an error message, error code: %d", 17);
+```
+
+When registring the SYSLOG handle you decide the loglevel that should go to the syslog server. In this case it is loglevel equal to or lower than NOTICE
+
+Facilities allowed: FAC_KERN, FAC_USER, FAC_MAIL, FAC_DAEMON, FAC_AUTH, FAC_SYSLOG, FAC_LPR, FAC_NEWS, FAC_UUCP, FAC_CRON, FAC_AUTHPRIV, FAC_FTP, FAC_NTP, FAC_LOG_AUDIT, FAC_LOG_ALERT, FAC_CLOCK_DAEMON, FAC_LOCAL0, FAC_LOCAL1, FAC_LOCAL2, FAC_LOCAL3, FAC_LOCAL4, FAC_LOCAL5, FAC_LOCAL6, FAC_LOCAL7
+
+#### Multiple output devices
+
+You can send messages to several output at the same time and filter them differently. Example:
+
+```
+#define MYLOG 0
+#define OTHERLOG 1
+
+logger.registerSpiffs(MYLOG, ERROR, "mylog");
+logger.registerSerial(MYLOG, DEBUG, "tst");
+logger.registerSerial(OTHERLOG, DEBUG, "xxx");
+
+logger.log(MYLOG, INFO, "Here is a message that goes to serial with service name [TST], but not spiffs");
+logger.log(OTHERLOG, INFO, "Here is a message that goes to serial with service name [XXX]");
+```
+
+## Formatting logfiles
+
+All registrations can configure how the text in the logfile should appear. You can use these log options:
+
+- FLAG_NONE
+- FLAG_NO_TIME (No time)
+- FLAG_NO_SERVICE (No service. eg [XXX])
+- FLAG_NO_LEVEL (No loglevel. eg [INFO])
+- FLAG_TIME_SIMPLE (Format: "000000001" milliseconds since boot)
+- FLAG_TIME_SHORT (Format: "HH:MM:SS")
+- FLAG_TIME_LONG (Format: YYYY-MM-DD HH:MM:SS.mmm (if real time is provided) or ddd:HH:MM:SS.mmm)
+- FLAG_SERVICE_LONG (Format: [XXXXXX] instead of [XXX])
+
+Options can be applied to all device registrations except syslog. Examples:
+
+```
+logger.registerSerial(MYLOG, DEBUG, "mylog", Serial2, FLAG_NO_TIME | FLAG_NO_SERVICE);
+logger.registerSpiffs(MYLOG, ERROR, "mylog", FLAG_TIME_SIMPLE);
+logger.registerSd(INFO, DEBUG, "mylog", FLAG_NONE);
+```
+
+## Using real time clock (RTC)
+
+If the RTC clock of the ESP is set, then the logging library automatically starts stamping all lines in the logfiles with real time. If you get network connection and use NTP, all this will happen automatically.
+
+Files on SPIFFS and SD card will also be timestamped. Also output of Serial will get real time stamps.
+
+You can also set the RTC time on the ESP with this function if you get time from somewhere else than NTP (GPS etc...)
+
+```
+logger.provideTime(2024, 6, 15, 10, 12, 51); // (June 15 2024 time 10:12:51)
+```
+
+## Macros to make life easier
+
+To make your code shorter the log library has some macros. The following to lines does exactly the same:
+
+```
+logger.log(MYLOG, INFO, "Here is an info message %d", 1);
+info(MYLOG,"Here is an info message %d", 1)
+```
+
+Available macros are:
+
+- debug(logId, message, ...)
+- info(logId, message, ...)
+- notice(logId, message, ...)
+- warning(logId, message, ...)
+- error(logId, message, ...)
+- critical(logId, message, ...)
+- alert(logId, message, ...)
+- emergency(logId, message, ...)
+
+## Query command prompt
+
+If you want to see what is logged to either SPIFFS, SD-card or both, you can set a hook in your code like this:
+
+```
+logger.enableQuery(Serial);
+```
+
+While you app is running the logger listens on the provided serial port for the user to hit **_space_** (ascii 32). Then a command prompt will be presented where you have access to the file systems. It works like a simple dos prompt with these commands:
+
+- cd (change directory)
+- dir (list files and directories)
+- type (display content of a file)
+- rm (remove a file)
+- rmdir (remove a directory recursively)
+- format (format the entire filesystem. You will not be warned before it happens)
+- peek (listen in on what is currently being logged)
+
+You can change between different log devices with these commands (if you have registred any logging to them):
+
+- spiffs (change to on-chip Eeprom of the ESP32)
+- sd (change to SD card)
+- syslog (change to syslog device)
+- serial (change to serial device)
+
+While in the prompt your code will continue running. You can peek at the currently selected log device.
+
+```
+SD:/> peek * info
+```
+
+This will show all log messages that is sent to SD card to all files, with a loglevel equal to or lower than level INFO.
+
+If you want to peek a certain file you can use:
+
+```
+SPIFFS:/> peek mylog info
+```
+
+## Compile options
+
+To save space you can define these compile options:
+
+- LOGGING_SPIFFS_DISABLE
+- LOGGING_SYSLOG_DISABLE
+- LOGGING_SD_DISABLE
+
+Each one saves around 20-40Kb of eeprom. Disable them if you don´t need them. This will leave more space for your own code.
+
+## Size limits and buffering
+
+#### Buffer size
+
+By default when you register the first logging device a buffer of 50 log lines will be created. Heap memory reserved for this is 16x50 = 800 bytes. Each log line that is buffered with timestamp is reserved from heap and typically takes 40-150 bytes per message.
+
+If you need a bigger buffer than the default 50 message size, you can run (**IMPORTANT:** before registring any devices)
+
+```
+logger.configure(200, true); // Bigger buffer with 200 messages, wait if buffer is full
+```
+
+If you have short bursts of messages comming fast you might need a big buffer.
+When the buffer is full, your code will be haltet until the buffer has been emptied writing the content out to the registred devices.
+If you have a very time sensitive application you can make the logger discard the log messages when the buffer is full like this:
+
+```
+logger.configure(200, false); // Bigger buffer, discard messages when buffer is full.
+```
+
+#### Max log handles for each device
+
+By default you can register 10 loghandles per device. If you need more (for big projects) you can configure your device before you register any log Id's:
+
+```
+logger.configureSerial(100);
+logger.configureSpiffs(100);
+logger.configureSd(spi, 5, 4000000, DEDICATED_SPI, 100);
+logger.configureSyslog("192.168.1.20", 514, "esp32", 100);
+```
+
+In these examples we extend the max handles to 100 instead of 10.
+
+## Examples
+
+Have a look in the examples folder. Here are some examples of all use cases.

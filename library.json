@@ -21,6 +21,6 @@
     "dependencies": {
         "adafruit/SdFat - Adafruit Fork": "^2.2.3",
         "paulstoffregen/Time": "^1.6.1",
-        "SPI"
+        "SPI": "*"
     }
 }

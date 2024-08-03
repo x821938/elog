@@ -5,7 +5,7 @@
 #define COMMON_H
 
 #ifndef LOGGING_SPIFFS_DISABLE
-#include <littleFS.h>
+#include <LittleFS.h>
 #endif
 
 #ifndef LOGGING_SD_DISABLE

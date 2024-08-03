@@ -3,8 +3,8 @@
 
 void LogSerial::begin()
 {
-    serialStats.bytesWrittenTotal = 0;
-    serialStats.messagesWrittenTotal = 0;
+    stats.bytesWrittenTotal = 0;
+    stats.messagesWrittenTotal = 0;
 }
 
 /* Configure the serial port for logging
@@ -18,7 +18,7 @@ void LogSerial::configure(const uint8_t maxRegistrations)
     }
 
     this->maxSerialRegistrations = maxRegistrations;
-    serialSettings = new SerialSetting[maxRegistrations];
+    settings = new Setting[maxRegistrations];
     logger.logInternal(INFO, "Serial logging configured with %d registrations", maxRegistrations);
 }
 
@@ -40,7 +40,7 @@ void LogSerial::registerSerial(const uint8_t logId, const uint8_t loglevel, cons
         return;
     }
 
-    SerialSetting* setting = &serialSettings[registeredSerialCount++];
+    Setting* setting = &settings[registeredSerialCount++];
 
     setting->logId = logId;
     setting->serial = &serial;
@@ -60,11 +60,11 @@ void LogSerial::registerSerial(const uint8_t logId, const uint8_t loglevel, cons
 void LogSerial::outputFromBuffer(const LogLineEntry logLineEntry, bool muteSerialOutput)
 {
     if (logLineEntry.internalLogDevice != nullptr) {
-        SerialSetting settingUnusable = { 0, nullptr, nullptr, NOLOG };
+        Setting settingUnusable = { 0, nullptr, nullptr, NOLOG };
         write(logLineEntry, settingUnusable);
     } else {
         for (uint8_t i = 0; i < registeredSerialCount; i++) {
-            SerialSetting* setting = &serialSettings[i];
+            Setting* setting = &settings[i];
             if (setting->logId == logLineEntry.logId && setting->logLevel != NOLOG) {
                 if (logLineEntry.logLevel <= setting->logLevel && !muteSerialOutput) {
                     write(logLineEntry, *setting);
@@ -85,7 +85,7 @@ void LogSerial::handlePeek(const LogLineEntry logLineEntry, const uint8_t settin
         if (peekAllServices || settingIndex == peekSettingIndex) {
             if (logLineEntry.logLevel <= peekLoglevel) {
                 char logStamp[LENGTH_OF_LOG_STAMP];
-                formatter.getLogStamp(logStamp, logLineEntry.timestamp, logLineEntry.logLevel, serialSettings[settingIndex].serviceName, serialSettings[settingIndex].logFlags);
+                formatter.getLogStamp(logStamp, logLineEntry.timestamp, logLineEntry.logLevel, settings[settingIndex].serviceName, settings[settingIndex].logFlags);
 
                 if (peekFilter) {
                     if (strcasestr(logLineEntry.logMessage, peekFilterText) != NULL) {
@@ -108,7 +108,7 @@ void LogSerial::handlePeek(const LogLineEntry logLineEntry, const uint8_t settin
 bool LogSerial::mustLog(const uint8_t logId, const uint8_t logLevel)
 {
     for (uint8_t i = 0; i < registeredSerialCount; i++) {
-        SerialSetting* setting = &serialSettings[i];
+        Setting* setting = &settings[i];
         if (setting->logId == logId) {
             if (logLevel <= setting->logLevel && setting->logLevel != NOLOG) {
                 return true;
@@ -122,7 +122,7 @@ bool LogSerial::mustLog(const uint8_t logId, const uint8_t logLevel)
  * logLineEntry: the log line entry
  * setting: the setting for the serial port
  */
-void LogSerial::write(const LogLineEntry logLineEntry, SerialSetting& setting)
+void LogSerial::write(const LogLineEntry logLineEntry, Setting& setting)
 {
     static char logStamp[LENGTH_OF_LOG_STAMP];
     char* service;
@@ -140,9 +140,9 @@ void LogSerial::write(const LogLineEntry logLineEntry, SerialSetting& setting)
         logSerial = setting.serial;
 
         formatter.getLogStamp(logStamp, logLineEntry.timestamp, logLineEntry.logLevel, service, setting.logFlags);
-        serialStats.bytesWrittenTotal += logSerial->print(logStamp);
-        serialStats.bytesWrittenTotal += logSerial->println(logLineEntry.logMessage);
-        serialStats.messagesWrittenTotal++;
+        stats.bytesWrittenTotal += logSerial->print(logStamp);
+        stats.bytesWrittenTotal += logSerial->println(logLineEntry.logMessage);
+        stats.messagesWrittenTotal++;
     }
 }
 
@@ -150,7 +150,7 @@ void LogSerial::write(const LogLineEntry logLineEntry, SerialSetting& setting)
  */
 void LogSerial::outputStats()
 {
-    logger.logInternal(INFO, "Serial stats. Messages written: %d, Bytes written: %d", serialStats.messagesWrittenTotal, serialStats.bytesWrittenTotal);
+    logger.logInternal(INFO, "Serial stats. Messages written: %d, Bytes written: %d", stats.messagesWrittenTotal, stats.bytesWrittenTotal);
 }
 
 /* Enable the query serial port
@@ -188,7 +188,7 @@ bool LogSerial::queryCmdPeek(const char* serviceName, const char* loglevel, cons
     } else {
         bool found = false;
         for (uint8_t i = 0; i < registeredSerialCount; i++) {
-            if (strcasecmp(serialSettings[i].serviceName, serviceName) == 0) {
+            if (strcasecmp(settings[i].serviceName, serviceName) == 0) {
                 peekSettingIndex = i;
                 peekAllServices = false;
                 found = true;
@@ -217,12 +217,12 @@ bool LogSerial::queryCmdPeek(const char* serviceName, const char* loglevel, cons
 void LogSerial::queryCmdStatus()
 {
     querySerial->println();
-    querySerial->printf("Serial total, messages written: %d\n", serialStats.messagesWrittenTotal);
-    querySerial->printf("Serial total, bytes written: %d\n", serialStats.bytesWrittenTotal);
+    querySerial->printf("Serial total, messages written: %d\n", stats.messagesWrittenTotal);
+    querySerial->printf("Serial total, bytes written: %d\n", stats.bytesWrittenTotal);
     for (uint8_t i = 0; i < registeredSerialCount; i++) {
         char logLevelStr[10];
-        formatter.getLogLevelStringRaw(logLevelStr, serialSettings[i].logLevel);
-        querySerial->printf("Serial reg, Service:%s, (ID %d, level %s)\n", serialSettings[i].serviceName, serialSettings[i].logId, logLevelStr);
+        formatter.getLogLevelStringRaw(logLevelStr, settings[i].logLevel);
+        querySerial->printf("Serial reg, Service:%s, (ID %d, level %s)\n", settings[i].serviceName, settings[i].logId, logLevelStr);
     }
 }
 

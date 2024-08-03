@@ -17,31 +17,31 @@
 
 #define LENGTH_LOG_DIR 30
 
-struct SpiffsFileSetting {
-    uint8_t logId;
-    const char* fileName;
-    uint8_t logLevel;
-    uint8_t logFlags;
-    File spiffsFileHandle;
-    uint8_t fileNumber;
-    uint32_t maxLogFileSize;
-    uint32_t bytesWritten;
-};
-
-struct SpiffsStats {
-    uint32_t bytesWrittenTotal;
-    uint32_t messagesWrittenTotal;
-    uint32_t messagesDiscardedTotal;
-};
-
 class LogSpiffs {
+    struct Setting {
+        uint8_t logId;
+        const char* fileName;
+        uint8_t logLevel;
+        uint8_t logFlags;
+        File spiffsFileHandle;
+        uint8_t fileNumber;
+        uint32_t maxLogFileSize;
+        uint32_t bytesWritten;
+    };
+
+    struct Stats {
+        uint32_t bytesWrittenTotal;
+        uint32_t messagesWrittenTotal;
+        uint32_t messagesDiscardedTotal;
+    };
+
 public:
     void begin();
     void configure(const uint8_t maxRegistrations);
     void registerSpiffs(const uint8_t logId, const uint8_t loglevel, const char* fileName, const uint8_t logFlags, const uint32_t maxLogFileSize);
     void outputFromBuffer(const LogLineEntry logLineEntry);
     void handlePeek(const LogLineEntry logLineEntry, const uint8_t settingIndex);
-    void write(const LogLineEntry logLineEntry, SpiffsFileSetting& setting);
+    void write(const LogLineEntry logLineEntry, Setting& setting);
     bool mustLog(const uint8_t logId, const uint8_t logLevel);
     void outputStats();
     void enableQuery(Stream& querySerial);
@@ -61,9 +61,9 @@ public:
 
 private:
     Formatting formatter;
-    SpiffsStats stats;
+    Stats stats;
 
-    SpiffsFileSetting* fileSettings; // Array of registered files
+    Setting* settings; // Array of registered file settings
     uint8_t maxRegistrations = 0; // Maximum number of registered files
     uint8_t fileSettingsCount = 0; // number of registered files
 
@@ -72,7 +72,7 @@ private:
     char queryCwd[LENGTH_LOG_DIR] = SPIFFS_LOG_ROOT; // current working directory for query commands
 
     bool peekEnabled = false;
-    uint8_t peekLoglevel = 8; // FIXME: NOLOG instead
+    uint8_t peekLoglevel = NOLOG;
     uint8_t peekSettingIndex = 0;
     bool peekAllFiles = false;
     bool peekFilter = false; // Text filter enabled
@@ -88,9 +88,9 @@ private:
     uint32_t removeOldestFile();
 
     bool ensureFilesystemConfigured();
-    bool ensureOpenFile(SpiffsFileSetting& setting);
+    bool ensureOpenFile(Setting& setting);
     void ensureFreeSpace();
-    void ensureFileSize(SpiffsFileSetting& setting);
+    void ensureFileSize(Setting& setting);
 
     void allFilesSync();
     void allFilesClose();

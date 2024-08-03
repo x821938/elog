@@ -5,9 +5,9 @@
 
 void LogSyslog::begin()
 {
-    syslogStats.bytesWrittenTotal = 0;
-    syslogStats.messagesWrittenTotal = 0;
-    syslogStats.messagesDiscardedTotal = 0;
+    stats.bytesWrittenTotal = 0;
+    stats.messagesWrittenTotal = 0;
+    stats.messagesDiscardedTotal = 0;
 }
 
 /* This should be called to set up logging syslog
@@ -23,7 +23,7 @@ void LogSyslog::configure(const char* serverName, const uint16_t port, const cha
         return;
     }
 
-    syslogSettings = new SyslogSetting[maxRegistrations];
+    settings = new Setting[maxRegistrations];
     this->maxRegistrations = maxRegistrations;
 
     this->syslogServer = serverName;
@@ -52,7 +52,7 @@ void LogSyslog::registerSyslog(const uint8_t logId, const uint8_t loglevel, cons
         return;
     }
 
-    SyslogSetting* setting = &syslogSettings[syslogSettingsCount++];
+    Setting* setting = &settings[syslogSettingsCount++];
 
     setting->logId = logId;
     setting->appName = appName;
@@ -70,7 +70,7 @@ void LogSyslog::registerSyslog(const uint8_t logId, const uint8_t loglevel, cons
 void LogSyslog::outputFromBuffer(const LogLineEntry logLineEntry)
 {
     for (uint8_t i = 0; i < syslogSettingsCount; i++) {
-        SyslogSetting* setting = &syslogSettings[i];
+        Setting* setting = &settings[i];
         if (setting->logId == logLineEntry.logId && setting->logLevel != NOLOG) {
             if (logLineEntry.logLevel <= setting->logLevel) {
                 write(logLineEntry, *setting);
@@ -84,10 +84,10 @@ void LogSyslog::outputFromBuffer(const LogLineEntry logLineEntry)
  * logLineEntry: the log line entry
  * setting: the syslog setting
  */
-void LogSyslog::write(const LogLineEntry logLineEntry, SyslogSetting& setting)
+void LogSyslog::write(const LogLineEntry logLineEntry, Setting& setting)
 {
     if (!WiFi.isConnected()) {
-        syslogStats.messagesDiscardedTotal++;
+        stats.messagesDiscardedTotal++;
         logger.logInternal(WARNING, "WiFi not connected. Cannot send syslog message");
         return;
     }
@@ -103,8 +103,8 @@ void LogSyslog::write(const LogLineEntry logLineEntry, SyslogSetting& setting)
     syslogUdp.endPacket();
 
     if (sentBytes == len) {
-        syslogStats.bytesWrittenTotal += len;
-        syslogStats.messagesWrittenTotal++;
+        stats.bytesWrittenTotal += len;
+        stats.messagesWrittenTotal++;
     } else {
         logger.logInternal(WARNING, "Failed to send syslog message");
     }
@@ -120,7 +120,7 @@ void LogSyslog::handlePeek(const LogLineEntry logLineEntry, const uint8_t settin
         if (peekAllApps || settingIndex == peekSettingIndex) {
             if (logLineEntry.logLevel <= peekLoglevel) {
                 char logStamp[LENGTH_OF_LOG_STAMP];
-                formatter.getLogStamp(logStamp, logLineEntry.timestamp, logLineEntry.logLevel, syslogSettings[settingIndex].appName, 0);
+                formatter.getLogStamp(logStamp, logLineEntry.timestamp, logLineEntry.logLevel, settings[settingIndex].appName, 0);
 
                 if (peekFilter) {
                     if (strcasestr(logLineEntry.logMessage, peekFilterText) != NULL) {
@@ -143,7 +143,7 @@ void LogSyslog::handlePeek(const LogLineEntry logLineEntry, const uint8_t settin
 bool LogSyslog::mustLog(const uint8_t logId, const uint8_t logLevel)
 {
     for (uint8_t i = 0; i < syslogSettingsCount; i++) {
-        SyslogSetting* setting = &syslogSettings[i];
+        Setting* setting = &settings[i];
         if (setting->logId == logId) {
             if (logLevel <= setting->logLevel && setting->logLevel != NOLOG) {
                 return true;
@@ -158,7 +158,7 @@ bool LogSyslog::mustLog(const uint8_t logId, const uint8_t logLevel)
 void LogSyslog::outputStats()
 {
     if (syslogConfigured) {
-        logger.logInternal(INFO, "Syslog stats. Messages written: %d, Bytes written: %d, Messages discarded: %d", syslogStats.messagesWrittenTotal, syslogStats.bytesWrittenTotal, syslogStats.messagesDiscardedTotal);
+        logger.logInternal(INFO, "Syslog stats. Messages written: %d, Bytes written: %d, Messages discarded: %d", stats.messagesWrittenTotal, stats.bytesWrittenTotal, stats.messagesDiscardedTotal);
     }
 }
 
@@ -195,7 +195,7 @@ bool LogSyslog::queryCmdPeek(const char* appName, const char* loglevel, const ch
     } else {
         bool found = false;
         for (uint8_t i = 0; i < syslogSettingsCount; i++) {
-            if (strcasecmp(syslogSettings[i].appName, appName) == 0) {
+            if (strcasecmp(settings[i].appName, appName) == 0) {
                 peekSettingIndex = i;
                 peekAllApps = false;
                 found = true;
@@ -224,13 +224,13 @@ bool LogSyslog::queryCmdPeek(const char* appName, const char* loglevel, const ch
 void LogSyslog::queryCmdStatus()
 {
     querySerial->println();
-    querySerial->printf("Syslog total, messages written: %d\n", syslogStats.messagesWrittenTotal);
-    querySerial->printf("Syslog total, bytes written: %d\n", syslogStats.bytesWrittenTotal);
-    querySerial->printf("Syslog total, messages discarded: %d\n", syslogStats.messagesDiscardedTotal);
+    querySerial->printf("Syslog total, messages written: %d\n", stats.messagesWrittenTotal);
+    querySerial->printf("Syslog total, bytes written: %d\n", stats.bytesWrittenTotal);
+    querySerial->printf("Syslog total, messages discarded: %d\n", stats.messagesDiscardedTotal);
     for (uint8_t i = 0; i < syslogSettingsCount; i++) {
         char logLevelStr[10];
-        formatter.getLogLevelStringRaw(logLevelStr, syslogSettings[i].logLevel);
-        querySerial->printf("Syslog reg, App:%s, (ID %d, level %s)\n", syslogSettings[i].appName, syslogSettings[i].logId, logLevelStr);
+        formatter.getLogLevelStringRaw(logLevelStr, settings[i].logLevel);
+        querySerial->printf("Syslog reg, App:%s, (ID %d, level %s)\n", settings[i].appName, settings[i].logId, logLevelStr);
     }
 }
 

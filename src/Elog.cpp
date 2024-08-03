@@ -416,6 +416,7 @@ bool Elog::mustLog(uint8_t logId, uint8_t logLevel)
     status |= logSD.mustLog(logId, logLevel);
     status |= logSpiffs.mustLog(logId, logLevel);
     status |= logSyslog.mustLog(logId, logLevel);
+    status |= (queryState == QUERY_WAITING_FOR_PEEK_QUIT); // if in peek mode, always log  
     return status;
 }
 

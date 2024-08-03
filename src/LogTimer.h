@@ -5,19 +5,19 @@
 
 using namespace std;
 
-struct TimerSetting {
-    uint32_t timerStartedMicros;
-    uint32_t lapStartedMicros;
-    uint32_t* lapMicros;
-    uint8_t currentLap;
-    uint8_t maxLaps;
-    bool running;
-};
-
 /* LogTimer is used together with Logger. You can use it for timing parts of your programs
    It's very fast and doest use much time itself. To start, laps or stop the timer
    takes less than 5 microseconds. This means you will get almost real timing of your programs. */
 class LogTimer {
+    struct TimerSetting {
+        uint32_t timerStartedMicros;
+        uint32_t lapStartedMicros;
+        uint32_t* lapMicros;
+        uint8_t currentLap;
+        uint8_t maxLaps;
+        bool running;
+    };
+
 public:
     // Ensure that the class is a singleton
     LogTimer(const LogTimer&) = delete;

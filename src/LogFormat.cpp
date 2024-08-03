@@ -161,7 +161,7 @@ uint8_t Formatting::getLogLevelFromString(const char* logLevel)
             return i;
         }
     }
-    return 8; // FIXME: return NOLOG instead
+    return NOLOG;
 }
 
 /* Check if the real time has been provided

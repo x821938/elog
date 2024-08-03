@@ -3,26 +3,7 @@
 
 #include <Arduino.h>
 #include <TimeLib.h>
-
-/* Structure for holding the real human time with millisecond precision */
-struct PrecisionTime {
-    uint16_t millisecond;
-    uint8_t second;
-    uint8_t minute;
-    uint8_t hour;
-    uint8_t day;
-    uint8_t month;
-    uint16_t year;
-};
-
-#define FLAG_NONE 0x00
-#define FLAG_NO_TIME 0x01
-#define FLAG_NO_SERVICE 0x02
-#define FLAG_NO_LEVEL 0x04
-#define FLAG_TIME_SIMPLE 0x08
-#define FLAG_TIME_SHORT 0x10
-#define FLAG_TIME_LONG 0x20
-#define FLAG_SERVICE_LONG 0x40
+#include <common.h>
 
 #define LENGTH_OF_TIME 25
 #define LENGTH_OF_SERVICE 10

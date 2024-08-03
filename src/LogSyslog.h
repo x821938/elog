@@ -8,47 +8,20 @@
 #include <LogFormat.h>
 #include <WiFi.h>
 
-struct SyslogSetting {
-    uint8_t logId;
-    const char* appName;
-    uint8_t facility;
-    uint8_t logLevel;
-};
-
-struct SyslogStats {
-    uint32_t bytesWrittenTotal;
-    uint32_t messagesWrittenTotal;
-    uint32_t messagesDiscardedTotal;
-};
-
-enum LogFacility {
-    FAC_KERN = 0,
-    FAC_USER = 1,
-    FAC_MAIL = 2,
-    FAC_DAEMON = 3,
-    FAC_AUTH = 4,
-    FAC_SYSLOG = 5,
-    FAC_LPR = 6,
-    FAC_NEWS = 7,
-    FAC_UUCP = 8,
-    FAC_CRON = 9,
-    FAC_AUTHPRIV = 10,
-    FAC_FTP = 11,
-    FAC_NTP = 12,
-    FAC_LOG_AUDIT = 13,
-    FAC_LOG_ALERT = 14,
-    FAC_CLOCK_DAEMON = 15,
-    FAC_LOCAL0 = 16,
-    FAC_LOCAL1 = 17,
-    FAC_LOCAL2 = 18,
-    FAC_LOCAL3 = 19,
-    FAC_LOCAL4 = 20,
-    FAC_LOCAL5 = 21,
-    FAC_LOCAL6 = 22,
-    FAC_LOCAL7 = 23
-};
-
 class LogSyslog {
+    struct Setting {
+        uint8_t logId;
+        const char* appName;
+        uint8_t facility;
+        uint8_t logLevel;
+    };
+
+    struct Stats {
+        uint32_t bytesWrittenTotal;
+        uint32_t messagesWrittenTotal;
+        uint32_t messagesDiscardedTotal;
+    };
+
 public:
     void begin();
     void configure(const char* serverName, const uint16_t port, const char* hostname, const uint8_t maxRegistrations);
@@ -68,15 +41,15 @@ public:
 
 private:
     Formatting formatter;
-    SyslogStats syslogStats;
+    Stats stats;
     WiFiUDP syslogUdp;
 
-    SyslogSetting* syslogSettings; // Array of registered syslog settings
+    Setting* settings; // Array of registered syslog settings
     uint8_t maxRegistrations = 0; // Maximum number of registered syslog settings
     uint8_t syslogSettingsCount = 0; // number of registered syslog settings
 
     bool peekEnabled = false;
-    uint8_t peekLoglevel = 8; // FIXME: NOLOG instead
+    uint8_t peekLoglevel = NOLOG;
     uint8_t peekSettingIndex = 0;
     bool peekAllApps = false;
     bool peekFilter = false; // Text filter enabled
@@ -89,7 +62,7 @@ private:
 
     Stream* querySerial = nullptr;
 
-    void write(const LogLineEntry logLineEntry, SyslogSetting& setting);
+    void write(const LogLineEntry logLineEntry, Setting& setting);
 };
 
 #else // LOGGING_SYSLOG_DISABLE

@@ -7,20 +7,20 @@
 
 using namespace std;
 
-struct SerialStats {
-    uint32_t bytesWrittenTotal;
-    uint32_t messagesWrittenTotal;
-};
-
-struct SerialSetting {
-    uint8_t logId;
-    Stream* serial;
-    const char* serviceName;
-    uint8_t logLevel;
-    uint8_t logFlags;
-};
-
 class LogSerial {
+    struct Setting {
+        uint8_t logId;
+        Stream* serial;
+        const char* serviceName;
+        uint8_t logLevel;
+        uint8_t logFlags;
+    };
+
+    struct Stats {
+        uint32_t bytesWrittenTotal;
+        uint32_t messagesWrittenTotal;
+    };
+
 public:
     void begin();
     void configure(const uint8_t maxRegistrations);
@@ -40,14 +40,14 @@ public:
 
 private:
     Formatting formatter;
-    SerialStats serialStats;
+    Stats stats;
 
-    SerialSetting* serialSettings;
+    Setting* settings; // Array of registered serial settings
     uint8_t maxSerialRegistrations = 0;
     uint8_t registeredSerialCount = 0;
 
     bool peekEnabled = false;
-    uint8_t peekLoglevel = 8; // FIXME: NOLOG instead
+    uint8_t peekLoglevel = NOLOG;
     uint8_t peekSettingIndex = 0;
     bool peekAllServices = false;
     bool peekFilter = false; // Text filter enabled
@@ -55,7 +55,7 @@ private:
 
     Stream* querySerial = nullptr;
 
-    void write(const LogLineEntry logLineEntry, SerialSetting& setting);
+    void write(const LogLineEntry logLineEntry, Setting& setting);
 };
 
 #endif // LOGSERIAL_H

@@ -14,39 +14,27 @@
 #define LENGTH_COMMAND_BUFFER 50
 #define LENGTH_ABSOLUTE_PATH 30
 
-enum LogLevel {
-    EMERGENCY = 0,
-    ALERT = 1,
-    CRITICAL = 2,
-    ERROR = 3,
-    WARNING = 4,
-    NOTICE = 5,
-    INFO = 6,
-    DEBUG = 7,
-    NOLOG = 8
-};
-
-enum QueryDevice {
-    NONE,
-    SPIFFS,
-    SD,
-    SER,
-    SYSLOG
-};
-
-enum QueryState {
-    QUERY_DISABLED = 0,
-    QUERY_WAITING_FOR_COMMAND = 1,
-    QUERY_WAITING_FOR_PEEK_QUIT = 2,
-    QUERY_WAITING_FOR_TYPE_CMD = 3
-};
-
-struct BufferStats {
-    uint32_t messagesBuffered;
-    uint32_t messagesDiscarded;
-};
-
 class Elog {
+    enum QueryDevice {
+        NONE,
+        SPIFFS,
+        SD,
+        SER,
+        SYSLOG
+    };
+
+    enum QueryState {
+        QUERY_DISABLED = 0,
+        QUERY_WAITING_FOR_COMMAND = 1,
+        QUERY_WAITING_FOR_PEEK_QUIT = 2,
+        QUERY_WAITING_FOR_TYPE_CMD = 3
+    };
+
+    struct BufferStats {
+        uint32_t messagesBuffered;
+        uint32_t messagesDiscarded;
+    };
+
     friend class LogTimer;
     friend class LogSpiffs;
     friend class LogSerial;

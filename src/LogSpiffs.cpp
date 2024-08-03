@@ -22,7 +22,7 @@ void LogSpiffs::configure(const uint8_t maxRegistrations)
         return;
     }
 
-    fileSettings = new SpiffsFileSetting[maxRegistrations];
+    settings = new Setting[maxRegistrations];
     fileSettingsCount = 0;
     this->maxRegistrations = maxRegistrations;
     logger.logInternal(INFO, "Configured SPIFFS logging with max %d registrations", maxRegistrations);
@@ -55,7 +55,7 @@ void LogSpiffs::registerSpiffs(const uint8_t logId, const uint8_t loglevel, cons
         return;
     }
 
-    SpiffsFileSetting* setting = &fileSettings[fileSettingsCount++];
+    Setting* setting = &settings[fileSettingsCount++];
 
     setting->logId = logId;
     setting->fileName = fileName;
@@ -81,7 +81,7 @@ void LogSpiffs::registerSpiffs(const uint8_t logId, const uint8_t loglevel, cons
 void LogSpiffs::outputFromBuffer(const LogLineEntry logLineEntry)
 {
     for (uint8_t i = 0; i < fileSettingsCount; i++) {
-        SpiffsFileSetting* setting = &fileSettings[i];
+        Setting* setting = &settings[i];
         if (setting->logId == logLineEntry.logId && setting->logLevel != NOLOG) {
             if (logLineEntry.logLevel <= setting->logLevel) {
                 if (ensureFilesystemConfigured()) {
@@ -104,7 +104,7 @@ void LogSpiffs::handlePeek(const LogLineEntry logLineEntry, const uint8_t settin
         if (peekAllFiles || peekSettingIndex == settingIndex) {
             if (logLineEntry.logLevel <= peekLoglevel) {
                 char logStamp[LENGTH_OF_LOG_STAMP];
-                formatter.getLogStamp(logStamp, logLineEntry.timestamp, logLineEntry.logLevel, "", fileSettings[settingIndex].logFlags);
+                formatter.getLogStamp(logStamp, logLineEntry.timestamp, logLineEntry.logLevel, "", settings[settingIndex].logFlags);
 
                 if (peekFilter) {
                     if (strcasestr(logLineEntry.logMessage, peekFilterText) != NULL) {
@@ -124,7 +124,7 @@ void LogSpiffs::handlePeek(const LogLineEntry logLineEntry, const uint8_t settin
  * logLineEntry: The logline to write
  * setting: The setting for the file
  */
-void LogSpiffs::write(const LogLineEntry logLineEntry, SpiffsFileSetting& setting)
+void LogSpiffs::write(const LogLineEntry logLineEntry, Setting& setting)
 {
     static char logStamp[LENGTH_OF_LOG_STAMP];
 
@@ -158,7 +158,7 @@ void LogSpiffs::write(const LogLineEntry logLineEntry, SpiffsFileSetting& settin
 bool LogSpiffs::mustLog(const uint8_t logId, const uint8_t logLevel)
 {
     for (uint8_t i = 0; i < fileSettingsCount; i++) {
-        SpiffsFileSetting* setting = &fileSettings[i];
+        Setting* setting = &settings[i];
         if (setting->logId == logId && setting->logLevel != NOLOG) {
             if (logLevel <= setting->logLevel) {
                 return true;
@@ -400,7 +400,7 @@ bool LogSpiffs::queryCmdPeek(const char* filename, const char* loglevel, const c
     } else {
         bool found = false;
         for (uint8_t i = 0; i < fileSettingsCount; i++) {
-            if (strcmp(fileSettings[i].fileName, filename) == 0) {
+            if (strcmp(settings[i].fileName, filename) == 0) {
                 peekSettingIndex = i;
                 peekAllFiles = false;
                 found = true;
@@ -436,7 +436,7 @@ void LogSpiffs::queryCmdStatus()
     querySerial->printf("SPIFFS total, messages discarded: %d\n", stats.messagesDiscardedTotal);
 
     for (uint8_t i = 0; i < fileSettingsCount; i++) {
-        SpiffsFileSetting setting = fileSettings[i];
+        Setting setting = settings[i];
         char logLevelStr[10];
         formatter.getLogLevelStringRaw(logLevelStr, setting.logLevel);
         querySerial->printf("SPIFFS reg, SPIFFS:%s/%s.%03d (ID %d, Level %s) - %d bytes written\n", currentLogDir, setting.fileName, setting.fileNumber, setting.logId, logLevelStr, setting.bytesWritten);
@@ -478,7 +478,7 @@ void LogSpiffs::queryPrintVolumeInfo()
 bool LogSpiffs::isFileOpen(const char* fileName)
 {
     for (uint8_t i = 0; i < fileSettingsCount; i++) {
-        SpiffsFileSetting* setting = &fileSettings[i];
+        Setting* setting = &settings[i];
         char fullFileName[LENGTH_ABSOLUTE_PATH];
         sprintf(fullFileName, "%s/%s.%03d", currentLogDir, setting->fileName, setting->fileNumber);
         if (strcmp(fullFileName, fileName) == 0) {
@@ -514,7 +514,7 @@ bool LogSpiffs::isValidFileName(const char* fileName)
 bool LogSpiffs::isFileNameRegistered(const char* fileName)
 {
     for (uint8_t i = 0; i < fileSettingsCount; i++) {
-        SpiffsFileSetting setting = fileSettings[i];
+        Setting setting = settings[i];
         if (strcmp(setting.fileName, fileName) == 0) {
             return true;
         }
@@ -675,7 +675,7 @@ bool LogSpiffs::ensureFilesystemConfigured()
  * setting: The setting for the file
  * return: true if the file is open
  */
-bool LogSpiffs::ensureOpenFile(SpiffsFileSetting& setting)
+bool LogSpiffs::ensureOpenFile(Setting& setting)
 {
     if (!setting.spiffsFileHandle) { // No valid file handle
         setting.fileNumber++;
@@ -722,7 +722,7 @@ void LogSpiffs::ensureFreeSpace()
 /* Ensure that the file size is not exceeded. If it is, close the file and a new one will be created by ensureOpenFile
  * setting: The setting for the file
  */
-void LogSpiffs::ensureFileSize(SpiffsFileSetting& setting)
+void LogSpiffs::ensureFileSize(Setting& setting)
 {
     if (setting.bytesWritten > setting.maxLogFileSize) {
         setting.spiffsFileHandle.close();
@@ -741,7 +741,7 @@ void LogSpiffs::allFilesSync()
         logger.logInternal(INFO, "Syncronizing all SPIFFS logfiles. Writing dirty cache");
 
         for (uint8_t i = 0; i < fileSettingsCount; i++) {
-            SpiffsFileSetting* setting = &fileSettings[i];
+            Setting* setting = &settings[i];
             if (setting->spiffsFileHandle) {
                 logger.logInternal(DEBUG, "Syncronizing SPIFFS:%s/%s.%03d", currentLogDir, setting->fileName, setting->fileNumber);
                 setting->spiffsFileHandle.flush();
@@ -757,7 +757,7 @@ void LogSpiffs::allFilesSync()
 void LogSpiffs::allFilesClose()
 {
     for (uint8_t i = 0; i < fileSettingsCount; i++) {
-        SpiffsFileSetting* setting = &fileSettings[i];
+        Setting* setting = &settings[i];
         if (setting->spiffsFileHandle) {
             setting->spiffsFileHandle.close();
             setting->bytesWritten = 0;
@@ -771,7 +771,7 @@ void LogSpiffs::allFilesClose()
 void LogSpiffs::allFilesOpen()
 {
     for (uint8_t i = 0; i < fileSettingsCount; i++) {
-        SpiffsFileSetting* setting = &fileSettings[i];
+        Setting* setting = &settings[i];
         if (!setting->spiffsFileHandle) {
             char fullFileName[LENGTH_ABSOLUTE_PATH];
             sprintf(fullFileName, "%s/%s.%03d", currentLogDir, setting->fileName, setting->fileNumber);

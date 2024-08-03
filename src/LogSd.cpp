@@ -36,7 +36,7 @@ void LogSD::configure(SPIClass& spi, const uint8_t cs, const uint32_t speed, uin
         sdCardLastReconnect = LONG_MIN;
         sdConfigured = true; // This is for our writerTask. When true it will start writing to sd card.
 
-        fileSettings = new SdFileSetting[maxRegistrations];
+        settings = new Setting[maxRegistrations];
         logger.logInternal(DEBUG, "Max SD registrations: %d", maxRegistrations);
     } else {
         logger.logInternal(ERROR, "SD logging already configured with %d registrations", maxRegistrations);
@@ -72,7 +72,7 @@ void LogSD::registerSd(const uint8_t logId, const uint8_t loglevel, const char* 
         return;
     }
 
-    SdFileSetting* setting = &fileSettings[registeredSdCount++];
+    Setting* setting = &settings[registeredSdCount++];
 
     setting->logId = logId;
     setting->sdFileHandle = new file_t();
@@ -100,7 +100,7 @@ void LogSD::registerSd(const uint8_t logId, const uint8_t loglevel, const char* 
 void LogSD::outputFromBuffer(const LogLineEntry logLineEntry)
 {
     for (uint8_t i = 0; i < registeredSdCount; i++) {
-        SdFileSetting* setting = &fileSettings[i];
+        Setting* setting = &settings[i];
         if (setting->logId == logLineEntry.logId && setting->logLevel != NOLOG) {
             if (logLineEntry.logLevel <= setting->logLevel) {
                 write(logLineEntry, *setting);
@@ -120,7 +120,7 @@ void LogSD::handlePeek(const LogLineEntry logLineEntry, const uint8_t settingInd
         if (peekAllFiles || peekSettingIndex == settingIndex) {
             if (logLineEntry.logLevel <= peekLoglevel) {
                 char logStamp[LENGTH_OF_LOG_STAMP];
-                formatter.getLogStamp(logStamp, logLineEntry.timestamp, logLineEntry.logLevel, "", fileSettings[settingIndex].logFlags);
+                formatter.getLogStamp(logStamp, logLineEntry.timestamp, logLineEntry.logLevel, "", settings[settingIndex].logFlags);
 
                 if (peekFilter) {
                     if (strcasestr(logLineEntry.logMessage, peekFilterText) != NULL) {
@@ -142,7 +142,7 @@ void LogSD::handlePeek(const LogLineEntry logLineEntry, const uint8_t settingInd
     logLineEntry: The logline to write
     setting: The setting for the log file
 */
-void LogSD::write(const LogLineEntry logLineEntry, SdFileSetting& setting)
+void LogSD::write(const LogLineEntry logLineEntry, Setting& setting)
 {
     static char logStamp[LENGTH_OF_LOG_STAMP];
     uint8_t logId = logLineEntry.logId;
@@ -194,7 +194,7 @@ void LogSD::write(const LogLineEntry logLineEntry, SdFileSetting& setting)
 bool LogSD::mustLog(const uint8_t logId, const uint8_t logLevel)
 {
     for (uint8_t i = 0; i < registeredSdCount; i++) {
-        SdFileSetting* setting = &fileSettings[i];
+        Setting* setting = &settings[i];
         if (setting->logId == logId && setting->logLevel != NOLOG) {
             if (logLevel <= setting->logLevel && setting->logLevel != NOLOG) {
                 return true;
@@ -437,7 +437,7 @@ bool LogSD::queryCmdPeek(const char* filename, const char* loglevel, const char*
     } else {
         bool found = false;
         for (uint8_t i = 0; i < registeredSdCount; i++) {
-            if (strcmp(fileSettings[i].fileName, filename) == 0) {
+            if (strcmp(settings[i].fileName, filename) == 0) {
                 peekSettingIndex = i;
                 peekAllFiles = false;
                 found = true;
@@ -475,7 +475,7 @@ void LogSD::queryCmdStatus()
     querySerial->printf("SD total, messages discarded: %d\n", stats.messagesDiscardedTotal);
 
     for (uint8_t i = 0; i < registeredSdCount; i++) {
-        SdFileSetting setting = fileSettings[i];
+        Setting setting = settings[i];
         char filename[50];
         char logLevelStr[10];
         getSettingFullFileName(filename, setting);
@@ -538,7 +538,7 @@ bool LogSD::isValidFileName(const char* fileName)
 bool LogSD::isFileNameRegistered(const char* fileName)
 {
     for (uint8_t i = 0; i < registeredSdCount; i++) {
-        if (strcmp(fileSettings[i].fileName, fileName) == 0) {
+        if (strcmp(settings[i].fileName, fileName) == 0) {
             return true;
         }
     }
@@ -573,7 +573,7 @@ void LogSD::ensureFreeSpace()
 /* check if the file is too big and if so, close it and a new one will be created
  * setting: The setting for the log file
  */
-void LogSD::ensureFileSize(SdFileSetting& setting)
+void LogSD::ensureFileSize(Setting& setting)
 {
     if (setting.bytesWritten > setting.maxLogFileSize) {
         setting.sdFileHandle->close();
@@ -814,7 +814,7 @@ uint32_t LogSD::getFreeSpace()
  * output: the full filename
  * setting: the setting
  */
-void LogSD::getSettingFullFileName(char* output, SdFileSetting setting)
+void LogSD::getSettingFullFileName(char* output, Setting setting)
 {
     sprintf(output, "%s/%s.%03d", logCwd, setting.fileName, setting.fileNumber);
 }
@@ -822,7 +822,7 @@ void LogSD::getSettingFullFileName(char* output, SdFileSetting setting)
 /* Timestamp the file with the current time
  * setting: the setting for the file
  */
-void LogSD::timestampFile(SdFileSetting& setting)
+void LogSD::timestampFile(Setting& setting)
 {
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -868,7 +868,7 @@ uint32_t LogSD::convertToEpoch(uint16_t pdate, uint16_t ptime)
 /*  Tries to create a logfile in our logdirectory if we dont have an open file already. If it fails, the next time we will try again is after
     SD_FILE_TRY_CREATE_EVERY milliseconds.
 */
-void LogSD::createLogFileIfClosed(SdFileSetting& setting)
+void LogSD::createLogFileIfClosed(Setting& setting)
 {
     if (!setting.sdFileHandle->isOpen()) { // Only do something if we dont have a valid filehandle
         if ((millis() - setting.sdFileCreteLastTry) >= SD_RECONNECT_EVERY) {
@@ -902,7 +902,7 @@ void LogSD::allFilesClose()
 {
     logger.logInternal(INFO, "Closing all logfiles");
     for (uint8_t i = 0; i < registeredSdCount; i++) {
-        SdFileSetting* setting = &fileSettings[i];
+        Setting* setting = &settings[i];
         if (setting->sdFileHandle->isOpen()) {
             char filename[50];
             getSettingFullFileName(filename, *setting);
@@ -928,7 +928,7 @@ void LogSD::allFilesSync()
             logger.logInternal(INFO, "Syncronizing all SD logfiles. Writing dirty cache");
 
             for (uint8_t i = 0; i < registeredSdCount; i++) {
-                SdFileSetting setting = fileSettings[i];
+                Setting setting = settings[i];
                 if (setting.sdFileHandle->isOpen()) {
                     char filename[50];
                     getSettingFullFileName(filename, setting);

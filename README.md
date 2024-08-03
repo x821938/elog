@@ -1,4 +1,4 @@
-# ElogPlus Library
+# Elog Library
 
 The ElogPlus library is a powerful library for logging and monitoring events in your arduino ESP32 applications.
 

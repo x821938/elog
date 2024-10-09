@@ -229,6 +229,12 @@ Available macros are:
 - alert(logId, message, ...)
 - emergency(logId, message, ...)
 
+You just need to include the macros:
+
+```
+#include <ElogMacros.h>
+```
+
 ## Query command prompt
 
 If you want to see what is logged to either SPIFFS, SD-card or both, you can set a hook in your code like this:

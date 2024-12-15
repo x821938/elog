@@ -35,7 +35,7 @@ LogTimer& LogTimer::getInstance()
 void LogTimer::configure(const uint8_t maxTimers, const uint8_t maxLaps)
 {
     if (configured) {
-        logger.logInternal(ERROR, "LogTimer already configured");
+        logger.logInternal(ELOG_LEVEL_ERROR, "LogTimer already configured");
         return;
     }
 
@@ -65,7 +65,7 @@ void LogTimer::start(const uint8_t timerId)
     }
 
     if (timerId >= maxTimers) {
-        logger.logInternal(ERROR, "Timer id %d out of range", timerId);
+        logger.logInternal(ELOG_LEVEL_ERROR, "Timer id %d out of range", timerId);
         return;
     }
 
@@ -103,14 +103,14 @@ void LogTimer::lap(const uint8_t timerId)
     }
 
     if (timerId >= maxTimers) {
-        logger.logInternal(ERROR, "Timer id %d out of range", timerId);
+        logger.logInternal(ELOG_LEVEL_ERROR, "Timer id %d out of range", timerId);
         return;
     }
 
     TimerSetting& timer = timerSettings[timerId];
 
     if (!timer.running) {
-        logger.logInternal(ERROR, "Timer %d not started", timerId);
+        logger.logInternal(ELOG_LEVEL_ERROR, "Timer %d not started", timerId);
         return;
     }
 
@@ -120,7 +120,7 @@ void LogTimer::lap(const uint8_t timerId)
 
     timer.currentLap++;
     if (timer.currentLap >= timer.maxLaps) {
-        logger.logInternal(WARNING, "Timer %d has reached max laps. Wrapping around", timerId);
+        logger.logInternal(ELOG_LEVEL_WARNING, "Timer %d has reached max laps. Wrapping around", timerId);
         timer.currentLap = 0;
     }
 }
@@ -142,7 +142,7 @@ void LogTimer::show(const uint8_t timerId, const uint8_t logId, const uint8_t lo
         configure();
     }
     if (timerId >= maxTimers) {
-        logger.logInternal(ERROR, "Timer id %d out of range", timerId);
+        logger.logInternal(ELOG_LEVEL_ERROR, "Timer id %d out of range", timerId);
         return;
     }
 
@@ -152,7 +152,7 @@ void LogTimer::show(const uint8_t timerId, const uint8_t logId, const uint8_t lo
     uint32_t currentTime = micros();
 
     if (!timer.running) {
-        logger.logInternal(ERROR, "Timer %d not running", timerId);
+        logger.logInternal(ELOG_LEVEL_ERROR, "Timer %d not running", timerId);
         return;
     }
 

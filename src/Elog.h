@@ -64,7 +64,7 @@ public:
     void configureSyslog(const char* server, uint16_t port = 514, const char* hostname = "esp32", const uint8_t maxRegistrations = 10);
     void registerSyslog(const uint8_t logId, const uint8_t logLevel, const uint8_t facility, const char* appName);
 #endif // LOGGING_SYSLOG_DISABLE
-    void configureInternalLogging(Stream& internalLogDevice, uint8_t internalLogLevel = ERROR, uint16_t statsEvery = 10000);
+    void configureInternalLogging(Stream& internalLogDevice, uint8_t internalLogLevel = ELOG_LEVEL_ERROR, uint16_t statsEvery = 10000);
     void enableQuery(Stream& serialPort);
     void provideTime(const uint16_t year, const uint8_t month, const uint8_t day, const uint8_t hour, const uint8_t minute, const uint8_t second);
 
@@ -84,7 +84,7 @@ private:
     uint8_t registeredSerialCount = 0;
 
     Stream* internalLogDevice = &Serial;
-    uint8_t internalLogLevel = ERROR; // Tell library user when he is doing something wrong by default
+    uint8_t internalLogLevel = ELOG_LEVEL_ERROR; // Tell library user when he is doing something wrong by default
 
     BufferStats bufferStats;
     uint16_t statsEvery = 10000;

@@ -31,7 +31,7 @@ The you register your log Id in order to start logging to it. This will often be
 void setup()
 {
     Serial.begin(115200);
-    logger.registerSerial(MYLOG, DEBUG, "tst"); // We want messages with DEBUG level and lower
+    logger.registerSerial(MYLOG, LOG_LEVEL_DEBUG, "tst"); // We want messages with DEBUG level and lower
 }
 ```
 
@@ -41,9 +41,9 @@ Then inside your code you can send messages to the serial port.
 void loop()
 {
     for (int i = 0; i < 1000; i++) {
-        logger.log(MYLOG, DEBUG, "Counter is %d", i);
+        logger.log(MYLOG, LOG_LEVEL_DEBUG, "Counter is %d", i);
         if (i % 10 == 0) {
-            logger.log(MYLOG, NOTICE, "Counter divisible by 10");
+            logger.log(MYLOG, LOG_LEVEL_NOTICE, "Counter divisible by 10");
         }
         delay(500);
     }
@@ -85,8 +85,8 @@ This is the most simple form of using the logger. You register a handle and send
 
 ```
 #define MYLOG 0
-logger.registerSerial(MYLOG, DEBUG, "tst");
-logger.log(MYLOG, INFO, "Here is a message");
+logger.registerSerial(MYLOG, LOG_LEVEL_DEBUG, "tst");
+logger.log(MYLOG, LOG_LEVEL_INFO, "Here is a message");
 ```
 
 The service name is "tst". It will always be upper cased and truncated to 3 chars when outputted.
@@ -108,15 +108,15 @@ Logging to a SD-card can be done by configuring SPI for the cardreader and regis
 SPIClass spi = SPIClass(SPI);
 spi.begin(18, 19, 23, 5); // Set your pins of your card reader here. SCK=19, MISO=19, MOSI=23, SS=5
 logger.configureSd(spi, 5, 2000000); // SS pin 5, bus speed = 2Mhz
-logger.registerSd(INFO, DEBUG, "mylog");
+logger.registerSd(INFO, LOG_LEVEL_DEBUG, "mylog");
 
-logger.log(MYLOG, INFO, "Here is a message");
+logger.log(MYLOG, LOG_LEVEL_INFO, "Here is a message");
 ```
 
 Every time the ESP is booted a new directory on the SD-card is created. The folder name is in format 0001 and is increased on every boot. In this example the first logfile is called mylog.001. When the file reaches the size of 100Kb a new file named mylog.002 will be created. If you want another max size of the logfile use:
 
 ```
-logger.registerSd(MYLOG, INFO, "mylog", FLAG_NONE, 20000);
+logger.registerSd(MYLOG, LOG_LEVEL_INFO, "mylog", FLAG_NONE, 20000);
 ```
 
 When registing the SD card file you decide the loglevel that should go to the file system. In this case it is loglevel equal or lower than INFO
@@ -131,14 +131,14 @@ Logging to the internal EEPROM of the ESP32 is as simple as register a loghandle
 
 ```
 #define MYLOG 0
-logger.registerSpiffs(MYLOG, DEBUG, "mylog");
-logger.log(MYLOG, INFO, "Here is a message");
+logger.registerSpiffs(MYLOG, LOG_LEVEL_DEBUG, "mylog");
+logger.log(MYLOG, LOG_LEVEL_INFO, "Here is a message");
 ```
 
 Every time the ESP is booted a new directory is created. The folder name is in format 0001 and is increased on every boot. In this example the first logfile is called mylog.001. When the file reaches the size of 100Kb a new file named mylog.002 will be created. If you want another max size of the logfile use:
 
 ```
-logger.registerSpiffs(MYLOG, DEBUG, "mylog", FLAG_NONE, 20000);
+logger.registerSpiffs(MYLOG, LOG_LEVEL_DEBUG, "mylog", FLAG_NONE, 20000);
 ```
 
 When registing the SPIFFS you decide the loglevel that should go to the file system. In this case it is loglevel equal or lower than DEBUG
@@ -152,8 +152,8 @@ Logging to the an external syslog server is as simple as configuring the syslog 
 ```
 #define MYLOG 0
 logger.configureSyslog("192.168.1.20", 514, "esp32"); // syslog host, port and name of the esp32 device host name
-logger.registerSyslog(MYLOG, NOTICE, FAC_LOCAL4, "mylog"); // Log facility and app name that is sent to syslog server
-logger.log(MYLOG, ERROR, "Here is an error message, error code: %d", 17);
+logger.registerSyslog(MYLOG, LOG_LEVEL_NOTICE, FAC_LOCAL4, "mylog"); // Log facility and app name that is sent to syslog server
+logger.log(MYLOG, ELOG_LEVEL_ERROR, "Here is an error message, error code: %d", 17);
 ```
 
 When registring the SYSLOG handle you decide the loglevel that should go to the syslog server. In this case it is loglevel equal to or lower than NOTICE
@@ -168,12 +168,12 @@ You can send messages to several output at the same time and filter them differe
 #define MYLOG 0
 #define OTHERLOG 1
 
-logger.registerSpiffs(MYLOG, ERROR, "mylog");
-logger.registerSerial(MYLOG, DEBUG, "tst");
-logger.registerSerial(OTHERLOG, DEBUG, "xxx");
+logger.registerSpiffs(MYLOG, ELOG_LEVEL_ERROR, "mylog");
+logger.registerSerial(MYLOG, LOG_LEVEL_DEBUG, "tst");
+logger.registerSerial(OTHERLOG, LOG_LEVEL_DEBUG, "xxx");
 
-logger.log(MYLOG, INFO, "Here is a message that goes to serial with service name [TST], but not spiffs");
-logger.log(OTHERLOG, INFO, "Here is a message that goes to serial with service name [XXX]");
+logger.log(MYLOG, LOG_LEVEL_INFO, "Here is a message that goes to serial with service name [TST], but not spiffs");
+logger.log(OTHERLOG, LOG_LEVEL_INFO, "Here is a message that goes to serial with service name [XXX]");
 ```
 
 ## Formatting logfiles
@@ -192,9 +192,9 @@ All registrations can configure how the text in the logfile should appear. You c
 Options can be applied to all device registrations except syslog. Examples:
 
 ```
-logger.registerSerial(MYLOG, DEBUG, "mylog", Serial2, FLAG_NO_TIME | FLAG_NO_SERVICE);
-logger.registerSpiffs(MYLOG, ERROR, "mylog", FLAG_TIME_SIMPLE);
-logger.registerSd(INFO, DEBUG, "mylog", FLAG_NONE);
+logger.registerSerial(MYLOG, LOG_LEVEL_DEBUG, "mylog", Serial2, FLAG_NO_TIME | FLAG_NO_SERVICE);
+logger.registerSpiffs(MYLOG, ELOG_LEVEL_ERROR, "mylog", FLAG_TIME_SIMPLE);
+logger.registerSd(INFO, LOG_LEVEL_DEBUG, "mylog", FLAG_NONE);
 ```
 
 ## Using real time clock (RTC)
@@ -214,7 +214,7 @@ logger.provideTime(2024, 6, 15, 10, 12, 51); // (June 15 2024 time 10:12:51)
 To make your code shorter the log library has some macros. The following to lines does exactly the same:
 
 ```
-logger.log(MYLOG, INFO, "Here is an info message %d", 1);
+logger.log(MYLOG, LOG_LEVEL_INFO, "Here is an info message %d", 1);
 info(MYLOG,"Here is an info message %d", 1)
 ```
 

@@ -72,7 +72,7 @@ private:
     char queryCwd[LENGTH_LOG_DIR] = SPIFFS_LOG_ROOT; // current working directory for query commands
 
     bool peekEnabled = false;
-    uint8_t peekLoglevel = NOLOG;
+    uint8_t peekLoglevel = ELOG_LEVEL_NOLOG;
     uint8_t peekSettingIndex = 0;
     bool peekAllFiles = false;
     bool peekFilter = false; // Text filter enabled

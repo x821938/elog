@@ -13,13 +13,13 @@ void LogSerial::begin()
 void LogSerial::configure(const uint8_t maxRegistrations)
 {
     if (this->maxSerialRegistrations > 0) {
-        logger.logInternal(ERROR, "Serial logging already configured with %d registrations", this->maxSerialRegistrations);
+        logger.logInternal(ELOG_LEVEL_ERROR, "Serial logging already configured with %d registrations", this->maxSerialRegistrations);
         return;
     }
 
     this->maxSerialRegistrations = maxRegistrations;
     settings = new Setting[maxRegistrations];
-    logger.logInternal(INFO, "Serial logging configured with %d registrations", maxRegistrations);
+    logger.logInternal(ELOG_LEVEL_INFO, "Serial logging configured with %d registrations", maxRegistrations);
 }
 
 /* Register a serial port for logging
@@ -36,7 +36,7 @@ void LogSerial::registerSerial(const uint8_t logId, const uint8_t loglevel, cons
     }
 
     if (registeredSerialCount >= maxSerialRegistrations) {
-        logger.logInternal(ERROR, "Max number of serial registrations reached : %d", maxSerialRegistrations);
+        logger.logInternal(ELOG_LEVEL_ERROR, "Max number of serial registrations reached : %d", maxSerialRegistrations);
         return;
     }
 
@@ -50,7 +50,7 @@ void LogSerial::registerSerial(const uint8_t logId, const uint8_t loglevel, cons
 
     char logLevelStr[10];
     formatter.getLogLevelStringRaw(logLevelStr, loglevel);
-    logger.logInternal(INFO, "Registered Serial log id %d, level %s, serviceName %s", logId, logLevelStr, serviceName);
+    logger.logInternal(ELOG_LEVEL_INFO, "Registered Serial log id %d, level %s, serviceName %s", logId, logLevelStr, serviceName);
 }
 
 /* Output the logline to the registered serial ports
@@ -60,12 +60,12 @@ void LogSerial::registerSerial(const uint8_t logId, const uint8_t loglevel, cons
 void LogSerial::outputFromBuffer(const LogLineEntry logLineEntry, bool muteSerialOutput)
 {
     if (logLineEntry.internalLogDevice != nullptr) {
-        Setting settingUnusable = { 0, nullptr, nullptr, NOLOG };
+        Setting settingUnusable = { 0, nullptr, nullptr, ELOG_LEVEL_NOLOG };
         write(logLineEntry, settingUnusable);
     } else {
         for (uint8_t i = 0; i < registeredSerialCount; i++) {
             Setting* setting = &settings[i];
-            if (setting->logId == logLineEntry.logId && setting->logLevel != NOLOG) {
+            if (setting->logId == logLineEntry.logId && setting->logLevel != ELOG_LEVEL_NOLOG) {
                 if (logLineEntry.logLevel <= setting->logLevel && !muteSerialOutput) {
                     write(logLineEntry, *setting);
                 }
@@ -110,7 +110,7 @@ bool LogSerial::mustLog(const uint8_t logId, const uint8_t logLevel)
     for (uint8_t i = 0; i < registeredSerialCount; i++) {
         Setting* setting = &settings[i];
         if (setting->logId == logId) {
-            if (logLevel <= setting->logLevel && setting->logLevel != NOLOG) {
+            if (logLevel <= setting->logLevel && setting->logLevel != ELOG_LEVEL_NOLOG) {
                 return true;
             }
         }
@@ -150,7 +150,7 @@ void LogSerial::write(const LogLineEntry logLineEntry, Setting& setting)
  */
 void LogSerial::outputStats()
 {
-    logger.logInternal(INFO, "Serial stats. Messages written: %d, Bytes written: %d", stats.messagesWrittenTotal, stats.bytesWrittenTotal);
+    logger.logInternal(ELOG_LEVEL_INFO, "Serial stats. Messages written: %d, Bytes written: %d", stats.messagesWrittenTotal, stats.bytesWrittenTotal);
 }
 
 /* Enable the query serial port
@@ -178,7 +178,7 @@ void LogSerial::queryCmdHelp()
 bool LogSerial::queryCmdPeek(const char* serviceName, const char* loglevel, const char* textFilter)
 {
     peekLoglevel = formatter.getLogLevelFromString(loglevel);
-    if (peekLoglevel == NOLOG) {
+    if (peekLoglevel == ELOG_LEVEL_NOLOG) {
         querySerial->printf("Invalid loglevel %s. Allowed values are: debug, info, notic, warn, error, crit, alert, emerg\n", loglevel);
         return false;
     }

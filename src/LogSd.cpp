@@ -24,7 +24,7 @@ void LogSD::begin()
 */
 void LogSD::configure(SPIClass& spi, const uint8_t cs, const uint32_t speed, uint8_t spiOption, const uint8_t maxRegistrations)
 {
-    logger.logInternal(INFO, "Configuring file logging to SD card");
+    logger.logInternal(ELOG_LEVEL_INFO, "Configuring file logging to SD card");
     if (!sdConfigured) {
         this->spi = spi;
         this->sdChipSelect = cs;
@@ -37,9 +37,9 @@ void LogSD::configure(SPIClass& spi, const uint8_t cs, const uint32_t speed, uin
         sdConfigured = true; // This is for our writerTask. When true it will start writing to sd card.
 
         settings = new Setting[maxRegistrations];
-        logger.logInternal(DEBUG, "Max SD registrations: %d", maxRegistrations);
+        logger.logInternal(ELOG_LEVEL_DEBUG, "Max SD registrations: %d", maxRegistrations);
     } else {
-        logger.logInternal(ERROR, "SD logging already configured with %d registrations", maxRegistrations);
+        logger.logInternal(ELOG_LEVEL_ERROR, "SD logging already configured with %d registrations", maxRegistrations);
     }
 }
 
@@ -53,22 +53,22 @@ void LogSD::configure(SPIClass& spi, const uint8_t cs, const uint32_t speed, uin
 void LogSD::registerSd(const uint8_t logId, const uint8_t loglevel, const char* fileName, const uint8_t logFlags, const uint32_t maxLogFileSize)
 {
     if (!sdConfigured) {
-        logger.logInternal(ERROR, "SD card not configured");
+        logger.logInternal(ELOG_LEVEL_ERROR, "SD card not configured");
         return;
     }
 
     if (!isValidFileName(fileName)) {
-        logger.logInternal(ERROR, "Invalid filename %s", fileName);
+        logger.logInternal(ELOG_LEVEL_ERROR, "Invalid filename %s", fileName);
         return;
     }
 
     if (isFileNameRegistered(fileName)) {
-        logger.logInternal(ERROR, "Filename %s already registered with logId %d", fileName, logId);
+        logger.logInternal(ELOG_LEVEL_ERROR, "Filename %s already registered with logId %d", fileName, logId);
         return;
     }
 
     if (registeredSdCount >= maxRegistrations) {
-        logger.logInternal(ERROR, "Maximum number of registered SD logfiles reached: %d", maxRegistrations);
+        logger.logInternal(ELOG_LEVEL_ERROR, "Maximum number of registered SD logfiles reached: %d", maxRegistrations);
         return;
     }
 
@@ -91,7 +91,7 @@ void LogSD::registerSd(const uint8_t logId, const uint8_t loglevel, const char* 
 
     char logLevelStr[10];
     formatter.getLogLevelStringRaw(logLevelStr, loglevel);
-    logger.logInternal(INFO, "Registered SD log id %d, level %s, filename %s", logId, logLevelStr, fileName);
+    logger.logInternal(ELOG_LEVEL_INFO, "Registered SD log id %d, level %s, filename %s", logId, logLevelStr, fileName);
 }
 
 /* Output the logline to the SD log files. Traverse all registered log files and output to the ones that match the logId and logLevel
@@ -101,7 +101,7 @@ void LogSD::outputFromBuffer(const LogLineEntry logLineEntry)
 {
     for (uint8_t i = 0; i < registeredSdCount; i++) {
         Setting* setting = &settings[i];
-        if (setting->logId == logLineEntry.logId && setting->logLevel != NOLOG) {
+        if (setting->logId == logLineEntry.logId && setting->logLevel != ELOG_LEVEL_NOLOG) {
             if (logLineEntry.logLevel <= setting->logLevel) {
                 write(logLineEntry, *setting);
             }
@@ -168,7 +168,7 @@ void LogSD::write(const LogLineEntry logLineEntry, Setting& setting)
                 if (bytesWritten != expectedBytes) { // If not everything is written, then the SD must be ejected.
                     sdCardPresent = false;
                     stats.messagesDiscardedTotal++;
-                    logger.logInternal(WARNING, "SD card ejected");
+                    logger.logInternal(ELOG_LEVEL_WARNING, "SD card ejected");
                     allFilesClose();
                 } else { // Data written succesfully.
                     stats.messagesWrittenTotal++;
@@ -195,8 +195,8 @@ bool LogSD::mustLog(const uint8_t logId, const uint8_t logLevel)
 {
     for (uint8_t i = 0; i < registeredSdCount; i++) {
         Setting* setting = &settings[i];
-        if (setting->logId == logId && setting->logLevel != NOLOG) {
-            if (logLevel <= setting->logLevel && setting->logLevel != NOLOG) {
+        if (setting->logId == logId && setting->logLevel != ELOG_LEVEL_NOLOG) {
+            if (logLevel <= setting->logLevel && setting->logLevel != ELOG_LEVEL_NOLOG) {
                 return true;
             }
         }
@@ -209,7 +209,7 @@ bool LogSD::mustLog(const uint8_t logId, const uint8_t logLevel)
 void LogSD::outputStats()
 {
     if (sdConfigured) {
-        logger.logInternal(INFO, "SD stats. Messages written: %d, messages discarded: %d, bytes written: %d", stats.messagesWrittenTotal, stats.messagesDiscardedTotal, stats.bytesWrittenTotal);
+        logger.logInternal(ELOG_LEVEL_INFO, "SD stats. Messages written: %d, messages discarded: %d, bytes written: %d", stats.messagesWrittenTotal, stats.messagesDiscardedTotal, stats.bytesWrittenTotal);
     }
 }
 
@@ -427,7 +427,7 @@ void LogSD::queryCmdType(const char* filename)
 bool LogSD::queryCmdPeek(const char* filename, const char* loglevel, const char* textFilter)
 {
     peekLoglevel = formatter.getLogLevelFromString(loglevel);
-    if (peekLoglevel == NOLOG) {
+    if (peekLoglevel == ELOG_LEVEL_NOLOG) {
         querySerial->printf("Invalid loglevel %s. Allowed values are: debug, info, notic, warn, error, crit, alert, emerg\n", loglevel);
         return false;
     }
@@ -558,9 +558,9 @@ void LogSD::ensureFreeSpace()
         uint32_t freeSpace = getFreeSpace();
         checkAfterBytes = freeSpace / 2; // check more often when free space is low
         bytesWrittenAtLastCheck = stats.bytesWrittenTotal;
-        logger.logInternal(DEBUG, "SD: Free space: %d bytes, check after: %d bytes", freeSpace, checkAfterBytes);
+        logger.logInternal(ELOG_LEVEL_DEBUG, "SD: Free space: %d bytes, check after: %d bytes", freeSpace, checkAfterBytes);
         if (freeSpace < SD_MIN_FREE_SPACE) {
-            logger.logInternal(DEBUG, "SD: Free space is lower than %d bytes. Removing oldest files", SD_MIN_FREE_SPACE);
+            logger.logInternal(ELOG_LEVEL_DEBUG, "SD: Free space is lower than %d bytes. Removing oldest files", SD_MIN_FREE_SPACE);
             uint32_t removedBytes = 0;
             do {
                 removedBytes += removeOldestFile();
@@ -613,15 +613,15 @@ bool LogSD::shouldReconnect()
 void LogSD::attemptReconnect()
 {
     sdCardLastReconnect = millis();
-    logger.logInternal(INFO, "Trying to connect to SD card");
+    logger.logInternal(ELOG_LEVEL_INFO, "Trying to connect to SD card");
 
     // Dedicated SPI if we only have one SPI device
     if (!sd.begin(SdSpiConfig(sdChipSelect, sdSpiOption, sdSpeed, &spi))) {
-        logger.logInternal(WARNING, "SD card initialization failed");
+        logger.logInternal(ELOG_LEVEL_WARNING, "SD card initialization failed");
         sd.end();
     } else {
         sdCardPresent = true;
-        logger.logInternal(INFO, "SD card detected");
+        logger.logInternal(ELOG_LEVEL_INFO, "SD card detected");
     }
 }
 
@@ -635,10 +635,10 @@ void LogSD::readLogNumber()
         file.read(fileContent, 10);
         sdLogNumber = atoi(fileContent);
 
-        logger.logInternal(DEBUG, "Read file SD:%s and got log number %d", SD_LOGNUMBER_FILE, sdLogNumber);
+        logger.logInternal(ELOG_LEVEL_DEBUG, "Read file SD:%s and got log number %d", SD_LOGNUMBER_FILE, sdLogNumber);
         file.close();
     } else {
-        logger.logInternal(DEBUG, "No SD:%s file", SD_LOGNUMBER_FILE);
+        logger.logInternal(ELOG_LEVEL_DEBUG, "No SD:%s file", SD_LOGNUMBER_FILE);
         sdLogNumber = 1; // We start from number 1 if there is no lognumber.txt file
     }
 }
@@ -649,12 +649,12 @@ void LogSD::writeLogNumber()
 {
     file_t file;
     file.open(SD_LOGNUMBER_FILE, O_WRITE | O_CREAT);
-    logger.logInternal(DEBUG, "Writing SD:%s file with lognumber %d", SD_LOGNUMBER_FILE, sdLogNumber);
+    logger.logInternal(ELOG_LEVEL_DEBUG, "Writing SD:%s file with lognumber %d", SD_LOGNUMBER_FILE, sdLogNumber);
     if (file) {
         file.print(sdLogNumber);
         file.close();
     } else {
-        logger.logInternal(ALERT, "Error writing to SD:%s. No file logging!", SD_LOGNUMBER_FILE);
+        logger.logInternal(ELOG_LEVEL_ALERT, "Error writing to SD:%s. No file logging!", SD_LOGNUMBER_FILE);
     }
 }
 
@@ -687,7 +687,7 @@ void LogSD::createLogDirectory()
 {
     sprintf(logCwd, "%s/%04d", SD_LOG_ROOT, sdLogNumber);
     sd.mkdir(logCwd);
-    logger.logInternal(DEBUG, "Created directory SD:%s", logCwd);
+    logger.logInternal(ELOG_LEVEL_DEBUG, "Created directory SD:%s", logCwd);
 }
 
 /*Adjust the provided path for cwd
@@ -721,19 +721,19 @@ uint32_t LogSD::removeOldestFile()
             char path[50];
             sprintf(path, "%s/%s", dirName, fileName);
             if (sd.remove(path)) {
-                logger.logInternal(NOTICE, "Removed oldest file SD:%s", path);
+                logger.logInternal(ELOG_LEVEL_NOTICE, "Removed oldest file SD:%s", path);
             } else {
-                logger.logInternal(WARNING, "Failed to remove oldest file SD:%s", path);
+                logger.logInternal(ELOG_LEVEL_WARNING, "Failed to remove oldest file SD:%s", path);
             }
         } else {
             if (sd.rmdir(dirName)) {
-                logger.logInternal(NOTICE, "Removed empty directory SD:%s", dirName);
+                logger.logInternal(ELOG_LEVEL_NOTICE, "Removed empty directory SD:%s", dirName);
             } else {
-                logger.logInternal(WARNING, "Failed to remove empty directory SD:%s", dirName);
+                logger.logInternal(ELOG_LEVEL_WARNING, "Failed to remove empty directory SD:%s", dirName);
             }
         }
     } else {
-        logger.logInternal(WARNING, "No files found in root directory of SD card");
+        logger.logInternal(ELOG_LEVEL_WARNING, "No files found in root directory of SD card");
     }
     return fileSize;
 }
@@ -873,7 +873,7 @@ void LogSD::createLogFileIfClosed(Setting& setting)
     if (!setting.sdFileHandle->isOpen()) { // Only do something if we dont have a valid filehandle
         if ((millis() - setting.sdFileCreteLastTry) >= SD_RECONNECT_EVERY) {
             if (filesInLogDir >= MAX_LOGFILES_IN_DIR) {
-                logger.logInternal(WARNING, "Maximum number of files in directory reached.");
+                logger.logInternal(ELOG_LEVEL_WARNING, "Maximum number of files in directory reached.");
                 allFilesClose();
                 sdCardPresent = false;
                 reconnect();
@@ -885,10 +885,10 @@ void LogSD::createLogFileIfClosed(Setting& setting)
 
             bool success = setting.sdFileHandle->open(filename, O_CREAT | O_WRITE);
             if (success) {
-                logger.logInternal(INFO, "Created logfile SD:%s", filename);
+                logger.logInternal(ELOG_LEVEL_INFO, "Created logfile SD:%s", filename);
                 filesInLogDir++;
             } else {
-                logger.logInternal(ERROR, "Could not create logfile SD:%s", filename);
+                logger.logInternal(ELOG_LEVEL_ERROR, "Could not create logfile SD:%s", filename);
             }
             setting.sdFileCreteLastTry = millis();
             setting.bytesWritten = 0;
@@ -900,13 +900,13 @@ void LogSD::createLogFileIfClosed(Setting& setting)
    This is needed after a sd card reconnect */
 void LogSD::allFilesClose()
 {
-    logger.logInternal(INFO, "Closing all logfiles");
+    logger.logInternal(ELOG_LEVEL_INFO, "Closing all logfiles");
     for (uint8_t i = 0; i < registeredSdCount; i++) {
         Setting* setting = &settings[i];
         if (setting->sdFileHandle->isOpen()) {
             char filename[50];
             getSettingFullFileName(filename, *setting);
-            logger.logInternal(DEBUG, "Closing SD:%s", filename);
+            logger.logInternal(ELOG_LEVEL_DEBUG, "Closing SD:%s", filename);
             setting->sdFileHandle->close();
         }
         setting->sdFileCreteLastTry = LONG_MIN; // This triggers log file creation immediately
@@ -925,20 +925,20 @@ void LogSD::allFilesSync()
 
     if (sdCardPresent) {
         if (millis() - lastSynced > SD_SYNC_FILES_EVERY) {
-            logger.logInternal(INFO, "Syncronizing all SD logfiles. Writing dirty cache");
+            logger.logInternal(ELOG_LEVEL_INFO, "Syncronizing all SD logfiles. Writing dirty cache");
 
             for (uint8_t i = 0; i < registeredSdCount; i++) {
                 Setting setting = settings[i];
                 if (setting.sdFileHandle->isOpen()) {
                     char filename[50];
                     getSettingFullFileName(filename, setting);
-                    logger.logInternal(DEBUG, "Syncronizing SD:%s", filename);
+                    logger.logInternal(ELOG_LEVEL_DEBUG, "Syncronizing SD:%s", filename);
                     if (formatter.realTimeProvided()) {
                         timestampFile(setting);
                     }
                     success = setting.sdFileHandle->sync();
                     if (!success) {
-                        logger.logInternal(WARNING, "Could not sync file SD:%s.%03d", setting.fileName, setting.fileNumber);
+                        logger.logInternal(ELOG_LEVEL_WARNING, "Could not sync file SD:%s.%03d", setting.fileName, setting.fileNumber);
                     }
                 }
             }

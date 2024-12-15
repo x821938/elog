@@ -33,15 +33,15 @@ enum LogFlags {
 };
 
 enum LogLevel {
-    EMERGENCY = 0,
-    ALERT = 1,
-    CRITICAL = 2,
-    ERROR = 3,
-    WARNING = 4,
-    NOTICE = 5,
-    INFO = 6,
-    DEBUG = 7,
-    NOLOG = 8
+    ELOG_LEVEL_EMERGENCY = 0,
+    ELOG_LEVEL_ALERT = 1,
+    ELOG_LEVEL_CRITICAL = 2,
+    ELOG_LEVEL_ERROR = 3,
+    ELOG_LEVEL_WARNING = 4,
+    ELOG_LEVEL_NOTICE = 5,
+    ELOG_LEVEL_INFO = 6,
+    ELOG_LEVEL_DEBUG = 7,
+    ELOG_LEVEL_NOLOG = 8
 };
 
 enum LogFacility {

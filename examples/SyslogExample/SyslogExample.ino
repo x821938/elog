@@ -15,9 +15,9 @@ void connect_wifi()
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
         delay(100);
-        logger.log(COUNTER, INFO, "Connecting to WiFi..");
+        logger.log(COUNTER, ELOG_LEVEL_INFO, "Connecting to WiFi..");
     }
-    logger.log(COUNTER, INFO, "Connected to the WiFi network");
+    logger.log(COUNTER, ELOG_LEVEL_INFO, "Connected to the WiFi network");
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 }
 
@@ -26,8 +26,8 @@ void setup()
     Serial.begin(115200);
     logger.configureSyslog("192.168.50.40", 514, "esp32"); // Syslog server IP, port and device name
 
-    logger.registerSerial(COUNTER, DEBUG, "COUNT", Serial); // Log both to serial...
-    logger.registerSyslog(COUNTER, DEBUG, FAC_USER, "counter"); // ...and syslog. Set the facility to user
+    logger.registerSerial(COUNTER, ELOG_LEVEL_DEBUG, "COUNT", Serial); // Log both to serial...
+    logger.registerSyslog(COUNTER, ELOG_LEVEL_DEBUG, FAC_USER, "counter"); // ...and syslog. Set the facility to user
 
     connect_wifi();
 }

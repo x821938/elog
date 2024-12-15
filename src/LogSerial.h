@@ -47,7 +47,7 @@ private:
     uint8_t registeredSerialCount = 0;
 
     bool peekEnabled = false;
-    uint8_t peekLoglevel = NOLOG;
+    uint8_t peekLoglevel = ELOG_LEVEL_NOLOG;
     uint8_t peekSettingIndex = 0;
     bool peekAllServices = false;
     bool peekFilter = false; // Text filter enabled

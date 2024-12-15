@@ -161,7 +161,7 @@ uint8_t Formatting::getLogLevelFromString(const char* logLevel)
             return i;
         }
     }
-    return NOLOG;
+    return ELOG_LEVEL_NOLOG;
 }
 
 /* Check if the real time has been provided

@@ -81,7 +81,7 @@ private:
     char queryCwd[20] = SD_LOG_ROOT; // current working directory
 
     bool peekEnabled = false;
-    uint8_t peekLoglevel = NOLOG;
+    uint8_t peekLoglevel = ELOG_LEVEL_NOLOG;
     uint8_t peekSettingIndex = 0;
     bool peekAllFiles = false;
     bool peekFilter = false; // Text filter enabled

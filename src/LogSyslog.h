@@ -49,7 +49,7 @@ private:
     uint8_t syslogSettingsCount = 0; // number of registered syslog settings
 
     bool peekEnabled = false;
-    uint8_t peekLoglevel = NOLOG;
+    uint8_t peekLoglevel = ELOG_LEVEL_NOLOG;
     uint8_t peekSettingIndex = 0;
     bool peekAllApps = false;
     bool peekFilter = false; // Text filter enabled

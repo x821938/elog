@@ -1,5 +1,5 @@
 /**
- * @file logTimer.cpp
+ * @file LogTimer.cpp
  * @brief Implementation file for the LogTimer class.
  *
  * This file contains the implementation of the LogTimer class, which provides functionality for timing operations
@@ -9,8 +9,8 @@
 
 #ifdef ELOG_TIMER_ENABLE
 
-#include "LogTimer.h"
-#include "Elog.h"
+#include <LogTimer.h>
+#include <Elog.h>
 
 /**
  * @brief Gets the instance of the LogTimer class.

@@ -1,8 +1,8 @@
 // common.h is a workaround for importing littleFS and sdfat libraries in correct order.
 // This is to avoid a lot of compilation warnings.
 
-#ifndef COMMON_H
-#define COMMON_H
+#ifndef ELOG_COMMON_H
+#define ELOG_COMMON_H
 
 #ifndef LOGGING_SPIFFS_DISABLE
 #include <LittleFS.h>
@@ -71,4 +71,4 @@ enum LogFacility {
     FAC_LOCAL7 = 23
 };
 
-#endif // COMMON_H
+#endif // ELOG_COMMON_H

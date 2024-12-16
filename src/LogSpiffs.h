@@ -1,5 +1,5 @@
-#ifndef LOGSPIFFS_H
-#define LOGSPIFFS_H
+#ifndef ELOG_LOGSPIFFS_H
+#define ELOG_LOGSPIFFS_H
 
 #include <Arduino.h>
 
@@ -123,4 +123,4 @@ public:
 };
 #endif // LOGGING_SPIFFS_DISABLE
 
-#endif // LOGSPIFFS_H
+#endif // ELOG_LOGSPIFFS_H

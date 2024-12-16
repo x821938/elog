@@ -1,5 +1,5 @@
-#ifndef LOGRINGBUFF_H
-#define LOGRINGBUFF_H
+#ifndef ELOG_LOGRINGBUFF_H
+#define ELOG_LOGRINGBUFF_H
 
 #include <Arduino.h>
 #include <freertos/semphr.h>
@@ -128,4 +128,4 @@ uint8_t LogRingBuff<T>::buffPercentageFull() const
     return ringBuffPercentage;
 }
 
-#endif // LOGRINGBUFF_H
+#endif // ELOG_LOGRINGBUFF_H

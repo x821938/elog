@@ -1,5 +1,5 @@
-#ifndef LOGSERIAL_H
-#define LOGSERIAL_H
+#ifndef ELOG_LOGSERIAL_H
+#define ELOG_LOGSERIAL_H
 
 #include <Arduino.h>
 #include <LogFormat.h>
@@ -58,4 +58,4 @@ private:
     void write(const LogLineEntry logLineEntry, Setting& setting);
 };
 
-#endif // LOGSERIAL_H
+#endif // ELOG_LOGSERIAL_H

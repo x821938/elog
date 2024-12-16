@@ -1,5 +1,5 @@
-#ifndef LOGSD_H
-#define LOGSD_H
+#ifndef ELOG_LOGSD_H
+#define ELOG_LOGSD_H
 
 #include <Arduino.h>
 #include <common.h>
@@ -157,4 +157,4 @@ public:
 };
 #endif // LOGGING_SD_DISABLE
 
-#endif // LOGSD_H
+#endif // ELOG_LOGSD_H

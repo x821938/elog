@@ -1,5 +1,5 @@
-#ifndef LOGSYSLOG_H
-#define LOGSYSLOG_H
+#ifndef ELOG_LOGSYSLOG_H
+#define ELOG_LOGSYSLOG_H
 
 #include <Arduino.h>
 
@@ -86,4 +86,4 @@ public:
 };
 #endif // LOGGING_SYSLOG_DISABLE
 
-#endif // LOGSYSLOG_H
+#endif // ELOG_LOGSYSLOG_H

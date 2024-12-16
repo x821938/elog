@@ -1,5 +1,5 @@
-#ifndef LOGTIMER_H
-#define LOGTIMER_H
+#ifndef ELOG_LOGTIMER_H
+#define ELOG_LOGTIMER_H
 
 #include <Arduino.h>
 
@@ -41,4 +41,4 @@ private:
 
 extern LogTimer& timer; // Make an instance available to user when he includes the library
 
-#endif // LOGTIMER_H
+#endif // ELOG_LOGTIMER_H

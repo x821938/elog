@@ -155,7 +155,7 @@ void Elog::registerSerial(const uint8_t logId, const uint8_t logLevel, const cha
     logSerial.registerSerial(logId, logLevel, serviceName, serial, logFlags);
 }
 
-#ifndef LOGGING_SPIFFS_DISABLE
+#ifdef ELOG_SPIFFS_ENABLE
 /**
  * Configure the SPIFFS. If this is not called by the user a default configuration of 10 will be used
  * @param maxRegistrations the maximum number of log files to register. Default is 10
@@ -188,9 +188,9 @@ void Elog::registerSpiffs(const uint8_t logId, const uint8_t logLevel, const cha
     registeredSpiffsCount++;
     logSpiffs.registerSpiffs(logId, logLevel, fileName, logFlags, maxLogFileSize);
 }
-#endif // LOGGING_SPIFFS_DISABLE
+#endif // ELOG_SPIFFS_ENABLE
 
-#ifndef LOGGING_SD_DISABLE
+#ifdef ELOG_SD_ENABLE
 /**
  * Configure the SD card
  * @param spi the SPI bus to use
@@ -227,9 +227,9 @@ void Elog::registerSd(const uint8_t logId, const uint8_t logLevel, const char* f
     registeredSdCount++;
     logSD.registerSd(logId, logLevel, fileName, logFlags, maxLogFileSize);
 }
-#endif // LOGGING_SD_DISABLE
+#endif // ELOG_SD_ENABLE
 
-#ifndef LOGGING_SYSLOG_DISABLE
+#ifdef ELOG_SYSLOG_ENABLE
 /**
  * Configure the syslog server
  * @param server the IP address of the syslog server
@@ -264,7 +264,7 @@ void Elog::registerSyslog(const uint8_t logId, const uint8_t logLevel, const uin
     logSyslog.registerSyslog(logId, logLevel, facility, appName);
 }
 
-#endif // LOGGING_SYSLOG_DISABLE
+#endif // ELOG_SYSLOG_ENABLE
 
 /**
  * Configure the internal logging

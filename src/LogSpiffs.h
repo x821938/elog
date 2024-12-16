@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-#ifndef LOGGING_SPIFFS_DISABLE
+#ifdef ELOG_SPIFFS_ENABLE
 
 #include <LogFormat.h>
 #include <LogRingBuff.h>
@@ -97,7 +97,7 @@ private:
     void allFilesOpen();
 };
 
-#else // LOGGING_SPIFFS_DISABLE
+#else // ELOG_SPIFFS_ENABLE
 class LogSpiffs {
 public:
     void begin() {};
@@ -121,6 +121,6 @@ public:
     void queryPrintPrompt() {};
     void queryPrintVolumeInfo() {};
 };
-#endif // LOGGING_SPIFFS_DISABLE
+#endif // ELOG_SPIFFS_ENABLE
 
 #endif // ELOG_LOGSPIFFS_H

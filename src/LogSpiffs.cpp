@@ -1,4 +1,4 @@
-#ifndef LOGGING_SPIFFS_DISABLE
+#ifdef ELOG_SPIFFS_ENABLE
 
 #include <Elog.h>
 #include <LogSpiffs.h>
@@ -780,4 +780,4 @@ void LogSpiffs::allFilesOpen()
     }
 }
 
-#endif // LOGGING_SPIFFS_DISABLE
+#endif // ELOG_SPIFFS_ENABLE

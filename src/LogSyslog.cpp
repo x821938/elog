@@ -1,4 +1,4 @@
-#ifndef LOGGING_SYSLOG_DISABLE
+#ifdef ELOG_SYSLOG_ENABLE
 
 #include <Elog.h>
 #include <LogSyslog.h>
@@ -248,4 +248,4 @@ void LogSyslog::peekStop()
     peekEnabled = false;
 }
 
-#endif // LOGGING_SYSLOG_DISABLE
+#endif // ELOG_SYSLOG_ENABLE

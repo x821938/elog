@@ -52,18 +52,18 @@ public:
     void logHex(uint8_t logId, uint8_t logLevel, const char* message, const uint8_t* data, uint16_t length);
     void configureSerial(const uint8_t maxRegistrations = 10);
     void registerSerial(const uint8_t logId, const uint8_t logLevel, const char* serviceName, Stream& serial = Serial, const uint8_t logFlags = 0);
-#ifndef LOGGING_SPIFFS_DISABLE
+#ifdef ELOG_SPIFFS_ENABLE
     void configureSpiffs(const uint8_t maxRegistrations = 10);
     void registerSpiffs(const uint8_t logId, const uint8_t logLevel, const char* fileName, const uint8_t logFlags = FLAG_NONE, const uint32_t maxLogFileSize = 100000);
-#endif // LOGGING_SPIFFS_DISABLE
-#ifndef LOGGING_SD_DISABLE
+#endif // ELOG_SPIFFS_ENABLE
+#ifdef ELOG_SD_ENABLE
     void configureSd(SPIClass& spi, const uint8_t cs, const uint32_t speed = 2000000, const uint8_t spiOption = DEDICATED_SPI, const uint8_t maxFilesettings = 10);
     void registerSd(const uint8_t logId, const uint8_t logLevel, const char* fileName, const uint8_t logFlags = FLAG_NONE, const uint32_t maxLogFileSize = 100000);
-#endif // LOGGING_SD_DISABLE
-#ifndef LOGGING_SYSLOG_DISABLE
+#endif // ELOG_SD_ENABLE
+#ifdef ELOG_SYSLOG_ENABLE
     void configureSyslog(const char* server, uint16_t port = 514, const char* hostname = "esp32", const uint8_t maxRegistrations = 10);
     void registerSyslog(const uint8_t logId, const uint8_t logLevel, const uint8_t facility, const char* appName);
-#endif // LOGGING_SYSLOG_DISABLE
+#endif // ELOG_SYSLOG_ENABLE
     void configureInternalLogging(Stream& internalLogDevice, uint8_t internalLogLevel = ELOG_LEVEL_ERROR, uint16_t statsEvery = 10000);
     void enableQuery(Stream& serialPort);
     void provideTime(const uint16_t year, const uint8_t month, const uint8_t day, const uint8_t hour, const uint8_t minute, const uint8_t second);

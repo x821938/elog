@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <common.h>
 
-#ifndef LOGGING_SD_DISABLE
+#ifdef ELOG_SD_ENABLE
 
 #include <LogFormat.h>
 #include <LogRingBuff.h>
@@ -130,7 +130,7 @@ private:
     void allFilesSync();
 };
 
-#else // LOGGING_SD_DISABLE
+#else // ELOG_SD_ENABLE
 class LogSD {
 public:
     void begin() {};
@@ -155,6 +155,6 @@ public:
     void queryPrintPrompt() {};
     void queryPrintVolumeInfo() {};
 };
-#endif // LOGGING_SD_DISABLE
+#endif // ELOG_SD_ENABLE
 
 #endif // ELOG_LOGSD_H

@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-#ifndef LOGGING_SYSLOG_DISABLE
+#ifdef ELOG_SYSLOG_ENABLE
 
 #include <LogFormat.h>
 #include <WiFi.h>
@@ -65,7 +65,7 @@ private:
     void write(const LogLineEntry logLineEntry, Setting& setting);
 };
 
-#else // LOGGING_SYSLOG_DISABLE
+#else // ELOG_SYSLOG_ENABLE
 class LogSyslog {
 public:
     void begin() { }
@@ -84,6 +84,6 @@ public:
 
     void peekStop() { }
 };
-#endif // LOGGING_SYSLOG_DISABLE
+#endif // ELOG_SYSLOG_ENABLE
 
 #endif // ELOG_LOGSYSLOG_H

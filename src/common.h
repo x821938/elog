@@ -4,11 +4,11 @@
 #ifndef ELOG_COMMON_H
 #define ELOG_COMMON_H
 
-#ifndef LOGGING_SPIFFS_DISABLE
+#ifdef ELOG_SPIFFS_ENABLE
 #include <LittleFS.h>
 #endif
 
-#ifndef LOGGING_SD_DISABLE
+#ifdef ELOG_SD_ENABLE
 #include <SdFatConfig.h>
 #include <SdFat.h>
 #endif

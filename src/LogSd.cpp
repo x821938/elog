@@ -1,4 +1,4 @@
-#ifndef LOGGING_SD_DISABLE
+#ifdef ELOG_SD_ENABLE
 
 #include <Elog.h>
 #include <LogSd.h>
@@ -947,4 +947,4 @@ void LogSD::allFilesSync()
     }
 }
 
-#endif // LOGGING_SD_DISABLE
+#endif // ELOG_SD_ENABLE

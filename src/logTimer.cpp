@@ -7,6 +7,8 @@
  * recording laps, displaying timer information, and formatting time strings.
  */
 
+#ifdef ELOG_TIMER_ENABLE
+
 #include "LogTimer.h"
 #include "Elog.h"
 
@@ -218,3 +220,5 @@ void LogTimer::getTimeStringMicros(const uint32_t microSeconds, char* output)
 // This is the only instance of the logtimer
 // It is available to all files that include LogTimer.h
 LogTimer& timer = LogTimer::getInstance();
+
+#endif // ELOG_TIMER_ENABLE

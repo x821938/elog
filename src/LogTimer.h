@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 
+#ifdef ELOG_TIMER_ENABLE
+
 using namespace std;
 
 /* LogTimer is used together with Logger. You can use it for timing parts of your programs
@@ -40,5 +42,7 @@ private:
 };
 
 extern LogTimer& timer; // Make an instance available to user when he includes the library
+
+#endif // ELOG_TIMER_ENABLE
 
 #endif // ELOG_LOGTIMER_H

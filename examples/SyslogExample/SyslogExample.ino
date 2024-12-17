@@ -6,9 +6,12 @@
 const char* ssid = WIFI_SSID;
 const char* password = WIFI_PASS;
 
-const char* ntpServer = "pool.ntp.org";
+const char* ntpServer = NTP_SERVER;
 const long gmtOffset_sec = 3600; // 1 hour ahead of UTC
 const int daylightOffset_sec = 3600; // Daylight saving time is 1 hour
+
+const char* syslogServer = SYSLOG_SERVER;
+const uint16_t syslogPort = SYSLOG_PORT;
 
 void connect_wifi()
 {
@@ -24,7 +27,7 @@ void connect_wifi()
 void setup()
 {
     Serial.begin(115200);
-    logger.configureSyslog("192.168.50.40", 514, "esp32"); // Syslog server IP, port and device name
+    logger.configureSyslog(syslogServer, syslogPort, "esp32"); // Syslog server IP, port and device name
 
     logger.registerSerial(COUNTER, ELOG_LEVEL_DEBUG, "COUNT", Serial); // Log both to serial...
     logger.registerSyslog(COUNTER, ELOG_LEVEL_DEBUG, FAC_USER, "counter"); // ...and syslog. Set the facility to user

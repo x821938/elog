@@ -68,6 +68,54 @@ public:
     void enableQuery(Stream& serialPort);
     void provideTime(const uint16_t year, const uint8_t month, const uint8_t day, const uint8_t hour, const uint8_t minute, const uint8_t second);
 
+    template <typename ...Args>
+    inline void debug(uint16_t logId, const char* format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_DEBUG, format, args...);
+    }
+
+    template <typename ...Args>
+    inline void info(uint16_t logId, const char* format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_INFO, format, args...);
+    }
+
+    template <typename ...Args>
+    inline void notice(uint16_t logId, const char* format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_NOTICE, format, args...);
+    }
+
+    template <typename ...Args>
+    inline void warning(uint16_t logId, const char* format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_WARNING, format, args...);
+    }
+
+    template <typename ...Args>
+    inline void error(uint16_t logId, const char* format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_ERROR, format, args...);
+    }
+
+    template <typename ...Args>
+    inline void critical(uint16_t logId, const char* format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_CRITICAL, format, args...);
+    }
+
+    template <typename ...Args>
+    inline void alert(uint16_t logId, const char* format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_ALERT, format, args...);
+    }
+
+    template <typename ...Args>
+    inline void emergency(uint16_t logId, const char* format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_EMERGENCY, format, args...);
+    }
+
 private:
     Elog() { } // Private constructor. Part of singleton pattern
 

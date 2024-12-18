@@ -81,6 +81,47 @@ void Elog::log(uint8_t logId, uint8_t logLevel, const char* format, ...)
     }
 }
 
+void Elog::log(uint8_t logId, uint8_t logLevel, const __FlashStringHelper* format, ...)
+{
+    const char* p = (const char*)format;
+
+    if (!logStarted) {
+        Logger.configure();
+    }
+    if (logLevel > ELOG_LEVEL_DEBUG) {
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY are the valid levels!");
+        return;
+    }
+
+    if (mustLog(logId, logLevel)) {
+        va_list args; /**< First find size of the log message */
+        va_start(args, format); /**< initialize the list */
+        uint16_t logLineSize = vsnprintf_P(NULL, 0, p, args); /**< check the size of the log message */
+        va_end(args); /**< end the list */
+
+        char* logLineMessage;
+        try {
+            logLineMessage = new char[logLineSize + 1]; /**< reserve memory for the log message + null terminator */
+        } catch (const std::bad_alloc& e) {
+            panic("Failed to allocate heap memory for log message! Not logged!");
+            return;
+        }
+
+        va_start(args, format);
+        vsnprintf(logLineMessage, logLineSize + 1, p, args); /**< format the log message */
+        va_end(args); /**< end the list */
+
+        LogLineEntry logLineEntry;
+        logLineEntry.timestamp = millis();
+        logLineEntry.logId = logId;
+        logLineEntry.logLevel = logLevel;
+        logLineEntry.internalLogDevice = nullptr;
+        logLineEntry.logMessage = logLineMessage;
+
+        buffAddLogLine(logLineEntry);
+    }
+}
+
 /** Log a message with hex data
  * @param logId the id of the log (must first be registered with registerSerial, registerSd or registerSpiffs)
  * @param logLevel the level of the log (DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)

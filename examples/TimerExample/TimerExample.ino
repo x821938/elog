@@ -15,10 +15,10 @@ void setup()
 {
     Serial.begin(115200);
 
-    logger.configure(50, true); // Logbuffer max 50 lines. Wait if buffer full.
+    Logger.configure(50, true); // Logbuffer max 50 lines. Wait if buffer full.
     timer.configure(5, 50); // 5 timers, 20 laps each
-    logger.registerSerial(LOG_TIMER, ELOG_LEVEL_DEBUG, "TIMER");
-    logger.registerSerial(LOG_TEST, ELOG_LEVEL_ERROR, "OUTPUT", Serial2);
+    Logger.registerSerial(LOG_TIMER, ELOG_LEVEL_DEBUG, "TIMER");
+    Logger.registerSerial(LOG_TEST, ELOG_LEVEL_ERROR, "OUTPUT", Serial2);
 }
 
 void loop()
@@ -32,20 +32,20 @@ void loop()
 
 void loggedYesBufferFull()
 {
-    logger.log(LOG_TIMER, ELOG_LEVEL_INFO, "Timer starting. Logging 1000 times with ERROR level. Should be logged. But exceeding buffer size. Should be slower");
+    Logger.log(LOG_TIMER, ELOG_LEVEL_INFO, "Timer starting. Logging 1000 times with ERROR level. Should be logged. But exceeding buffer size. Should be slower");
     timer.start(TIMER1);
     for (int i = 0; i < 1000; i++) {
-        logger.log(LOG_TEST, ELOG_LEVEL_ERROR, "Lap %d", i); // Should  be logged to Serial2
+        Logger.log(LOG_TEST, ELOG_LEVEL_ERROR, "Lap %d", i); // Should  be logged to Serial2
     }
     timer.show(TIMER1, LOG_TIMER, ELOG_LEVEL_NOTICE, "LoggedYesBufferFull");
 }
 
 void loggedYes()
 {
-    logger.log(LOG_TIMER, ELOG_LEVEL_INFO, "Timer starting. Logging 10 times with ERROR level. Should be logged.");
+    Logger.log(LOG_TIMER, ELOG_LEVEL_INFO, "Timer starting. Logging 10 times with ERROR level. Should be logged.");
     timer.start(TIMER1);
     for (int i = 0; i < 10; i++) {
-        logger.log(LOG_TEST, ELOG_LEVEL_ERROR, "Lap %d", i); // Should  be logged to Serial2
+        Logger.log(LOG_TEST, ELOG_LEVEL_ERROR, "Lap %d", i); // Should  be logged to Serial2
         timer.lap(TIMER1);
     }
     timer.show(TIMER1, LOG_TIMER, ELOG_LEVEL_NOTICE, "LoggedYes");
@@ -54,10 +54,10 @@ void loggedYes()
 
 void loggedNo()
 {
-    logger.log(LOG_TIMER, ELOG_LEVEL_INFO, "Timer starting. Logging 1000 times with DEBUG level. Should not be logged.");
+    Logger.log(LOG_TIMER, ELOG_LEVEL_INFO, "Timer starting. Logging 1000 times with DEBUG level. Should not be logged.");
     timer.start(TIMER1);
     for (int i = 0; i < 1000; i++) {
-        logger.log(LOG_TEST, ELOG_LEVEL_DEBUG, "Lap %d", i); // Should not be logged, is under ERROR level
+        Logger.log(LOG_TEST, ELOG_LEVEL_DEBUG, "Lap %d", i); // Should not be logged, is under ERROR level
     }
     timer.show(TIMER1, LOG_TIMER, ELOG_LEVEL_NOTICE, "LoggedNo");
     delay(5000);

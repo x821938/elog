@@ -13,13 +13,13 @@ void LogSerial::begin()
 void LogSerial::configure(const uint8_t maxRegistrations)
 {
     if (this->maxSerialRegistrations > 0) {
-        logger.logInternal(ELOG_LEVEL_ERROR, "Serial logging already configured with %d registrations", this->maxSerialRegistrations);
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Serial logging already configured with %d registrations", this->maxSerialRegistrations);
         return;
     }
 
     this->maxSerialRegistrations = maxRegistrations;
     settings = new Setting[maxRegistrations];
-    logger.logInternal(ELOG_LEVEL_INFO, "Serial logging configured with %d registrations", maxRegistrations);
+    Logger.logInternal(ELOG_LEVEL_INFO, "Serial logging configured with %d registrations", maxRegistrations);
 }
 
 /* Register a serial port for logging
@@ -36,7 +36,7 @@ void LogSerial::registerSerial(const uint8_t logId, const uint8_t loglevel, cons
     }
 
     if (registeredSerialCount >= maxSerialRegistrations) {
-        logger.logInternal(ELOG_LEVEL_ERROR, "Max number of serial registrations reached : %d", maxSerialRegistrations);
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Max number of serial registrations reached : %d", maxSerialRegistrations);
         return;
     }
 
@@ -50,7 +50,7 @@ void LogSerial::registerSerial(const uint8_t logId, const uint8_t loglevel, cons
 
     char logLevelStr[10];
     formatter.getLogLevelStringRaw(logLevelStr, loglevel);
-    logger.logInternal(ELOG_LEVEL_INFO, "Registered Serial log id %d, level %s, serviceName %s", logId, logLevelStr, serviceName);
+    Logger.logInternal(ELOG_LEVEL_INFO, "Registered Serial log id %d, level %s, serviceName %s", logId, logLevelStr, serviceName);
 }
 
 /* Output the logline to the registered serial ports
@@ -150,7 +150,7 @@ void LogSerial::write(const LogLineEntry logLineEntry, Setting& setting)
  */
 void LogSerial::outputStats()
 {
-    logger.logInternal(ELOG_LEVEL_INFO, "Serial stats. Messages written: %d, Bytes written: %d", stats.messagesWrittenTotal, stats.bytesWrittenTotal);
+    Logger.logInternal(ELOG_LEVEL_INFO, "Serial stats. Messages written: %d, Bytes written: %d", stats.messagesWrittenTotal, stats.bytesWrittenTotal);
 }
 
 /* Enable the query serial port

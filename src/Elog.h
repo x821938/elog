@@ -179,6 +179,6 @@ private:
     void queryPrintPrompt();
 };
 
-extern Elog& logger; // Make an instance available to user when he includes the library
+extern Elog& Logger; // Make an instance available to user when he includes the library
 
 #endif // ELOG_H

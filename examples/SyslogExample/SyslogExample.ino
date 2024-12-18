@@ -18,19 +18,19 @@ void connect_wifi()
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
         delay(100);
-        logger.log(COUNTER, ELOG_LEVEL_INFO, "Connecting to WiFi..");
+        Logger.log(COUNTER, ELOG_LEVEL_INFO, "Connecting to WiFi..");
     }
-    logger.log(COUNTER, ELOG_LEVEL_INFO, "Connected to the WiFi network");
+    Logger.log(COUNTER, ELOG_LEVEL_INFO, "Connected to the WiFi network");
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 }
 
 void setup()
 {
     Serial.begin(115200);
-    logger.configureSyslog(syslogServer, syslogPort, "esp32"); // Syslog server IP, port and device name
+    Logger.configureSyslog(syslogServer, syslogPort, "esp32"); // Syslog server IP, port and device name
 
-    logger.registerSerial(COUNTER, ELOG_LEVEL_DEBUG, "COUNT", Serial); // Log both to serial...
-    logger.registerSyslog(COUNTER, ELOG_LEVEL_DEBUG, FAC_USER, "counter"); // ...and syslog. Set the facility to user
+    Logger.registerSerial(COUNTER, ELOG_LEVEL_DEBUG, "COUNT", Serial); // Log both to serial...
+    Logger.registerSyslog(COUNTER, ELOG_LEVEL_DEBUG, FAC_USER, "counter"); // ...and syslog. Set the facility to user
 
     connect_wifi();
 }
@@ -40,6 +40,6 @@ void loop()
     static uint32_t mainCounter = 0;
 
     uint8_t logLevel = random(0, 8);
-    logger.log(COUNTER, logLevel, "Main loop counter: %d", mainCounter++);
+    Logger.log(COUNTER, logLevel, "Main loop counter: %d", mainCounter++);
     delay(10000);
 }

@@ -45,10 +45,10 @@ void Elog::configure(uint16_t logLineCapacity, bool waitIfBufferFull)
 void Elog::log(uint8_t logId, uint8_t logLevel, const char* format, ...)
 {
     if (!logStarted) {
-        logger.configure();
+        Logger.configure();
     }
     if (logLevel > ELOG_LEVEL_DEBUG) {
-        logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY are the valid levels!");
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY are the valid levels!");
         return;
     }
 
@@ -94,7 +94,7 @@ void Elog::logHex(uint8_t logId, uint8_t logLevel, const char* message, const ui
         configure();
     }
     if (logLevel > ELOG_LEVEL_DEBUG) {
-        logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY are the valid levels!");
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY are the valid levels!");
         return;
     }
 
@@ -148,7 +148,7 @@ void Elog::registerSerial(const uint8_t logId, const uint8_t logLevel, const cha
         configure();
     }
     if (logLevel > ELOG_LEVEL_NOLOG) {
-        logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
         return;
     }
     registeredSerialCount++;
@@ -182,7 +182,7 @@ void Elog::registerSpiffs(const uint8_t logId, const uint8_t logLevel, const cha
         configure();
     }
     if (logLevel > ELOG_LEVEL_NOLOG) {
-        logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
         return;
     }
     registeredSpiffsCount++;
@@ -221,7 +221,7 @@ void Elog::registerSd(const uint8_t logId, const uint8_t logLevel, const char* f
         configure();
     }
     if (logLevel > ELOG_LEVEL_NOLOG) {
-        logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
         return;
     }
     registeredSdCount++;
@@ -257,7 +257,7 @@ void Elog::registerSyslog(const uint8_t logId, const uint8_t logLevel, const uin
         configure();
     }
     if (logLevel > ELOG_LEVEL_NOLOG) {
-        logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
         return;
     }
     registeredSyslogCount++;
@@ -297,11 +297,11 @@ void Elog::enableQuery(Stream& serialPort)
 
     queryEnabled = true;
     querySerial = &serialPort;
-    logger.logInternal(ELOG_LEVEL_INFO, "Query enabled on serial port! Send a space character to activate the query mode");
+    Logger.logInternal(ELOG_LEVEL_INFO, "Query enabled on serial port! Send a space character to activate the query mode");
 }
 
 /**
- * Provide the time to the logger. This will set the RTC clock time (used for timestamping log files)
+ * Provide the time to the Logger. This will set the RTC clock time (used for timestamping log files)
  * You can also just point set the time with NTP using configTime() from time.h
  * @param year the year
  * @param month the month
@@ -901,4 +901,4 @@ void Elog::queryPrintPrompt()
 
 // This is the only instance of the logger
 // It is available to all files that include Elog.h
-Elog& logger = Elog::getInstance();
+Elog& Logger = Elog::getInstance();

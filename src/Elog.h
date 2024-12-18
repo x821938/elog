@@ -10,6 +10,9 @@
 #include <LogSyslog.h>
 #include <esp_task_wdt.h>
 
+// From ArduinoLog.h
+#define CR "\r\n"
+
 #define LENGTH_COMMAND 10
 #define LENGTH_COMMAND_BUFFER 50
 #define LENGTH_ABSOLUTE_PATH 30

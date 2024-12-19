@@ -64,11 +64,7 @@ void LogSpiffs::registerSpiffs(const uint8_t logId, const uint8_t loglevel, cons
     setting->bytesWritten = 0;
     setting->maxLogFileSize = maxLogFileSize;
 
-    if (logFlags == FLAG_NONE) {
-        setting->logFlags = FLAG_NO_SERVICE; // Servicename makes no sense in a file
-    } else {
-        setting->logFlags = logFlags;
-    }
+    setting->logFlags |= FLAG_NO_SERVICE; // Servicename makes no sense in a file
 
     char logLevelStr[10];
     formatter.getLogLevelStringRaw(logLevelStr, loglevel);

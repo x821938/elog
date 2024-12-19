@@ -82,11 +82,7 @@ void LogSD::registerSd(const uint8_t logId, const uint8_t loglevel, const char* 
     setting->fileNumber = 0;
     setting->bytesWritten = 0;
 
-    if (logFlags == FLAG_NONE) {
-        setting->logFlags = FLAG_NO_SERVICE; // Servicename makes no sense in a file
-    } else {
-        setting->logFlags = logFlags;
-    }
+    setting->logFlags |= FLAG_NO_SERVICE; // Servicename makes no sense in a file
     setting->sdFileCreteLastTry = LONG_MIN; // This triggers log file creation immediately
 
     char logLevelStr[10];

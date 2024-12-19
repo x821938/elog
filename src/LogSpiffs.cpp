@@ -189,6 +189,13 @@ void LogSpiffs::peekStop()
     peekEnabled = false;
 }
 
+/* Return the number of registrations
+ */
+uint8_t LogSpiffs::registeredCount()
+{
+    return fileSettingsCount;
+}
+
 /* Print the help specific for the SPIFFS file system
  */
 void LogSpiffs::queryCmdHelp()

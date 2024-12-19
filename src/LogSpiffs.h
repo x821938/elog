@@ -46,6 +46,7 @@ public:
     void outputStats();
     void enableQuery(Stream& querySerial);
     void peekStop();
+    uint8_t registeredCount();
 
     void queryCmdHelp();
     void queryCmdDir(const char* directory);
@@ -108,6 +109,7 @@ public:
     void outputStats() {};
     void enableQuery(Stream& querySerial) {};
     void peekStop() {};
+    uint8_t registeredCount() { return 0; };
 
     void queryCmdHelp() {};
     void queryCmdDir(const char* directory) {};

@@ -30,6 +30,7 @@ public:
     void handlePeek(const LogLineEntry logLineEntry, const uint8_t settingIndex);
     bool mustLog(const uint8_t logId, const uint8_t logLevel);
     void outputStats();
+    uint8_t registeredCount();
 
     void enableQuery(Stream& querySerial);
     void queryCmdHelp();
@@ -75,6 +76,7 @@ public:
     void handlePeek(const LogLineEntry logLineEntry, const uint8_t settingIndex) { }
     bool mustLog(const uint8_t logId, const uint8_t logLevel) { return false; }
     void outputStats() { }
+    uint8_t registeredCount() { return 0; };
 
     void enableQuery(Stream& querySerial) { }
     void queryCmdHelp() { }

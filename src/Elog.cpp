@@ -192,7 +192,6 @@ void Elog::registerSerial(const uint8_t logId, const uint8_t logLevel, const cha
         Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
         return;
     }
-    registeredSerialCount++;
     logSerial.registerSerial(logId, logLevel, serviceName, serial, logFlags);
 }
 
@@ -226,7 +225,6 @@ void Elog::registerSpiffs(const uint8_t logId, const uint8_t logLevel, const cha
         Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
         return;
     }
-    registeredSpiffsCount++;
     logSpiffs.registerSpiffs(logId, logLevel, fileName, logFlags, maxLogFileSize);
 }
 #endif // ELOG_SPIFFS_ENABLE
@@ -265,7 +263,6 @@ void Elog::registerSd(const uint8_t logId, const uint8_t logLevel, const char* f
         Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
         return;
     }
-    registeredSdCount++;
     logSD.registerSd(logId, logLevel, fileName, logFlags, maxLogFileSize);
 }
 #endif // ELOG_SD_ENABLE
@@ -301,7 +298,6 @@ void Elog::registerSyslog(const uint8_t logId, const uint8_t logLevel, const uin
         Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
         return;
     }
-    registeredSyslogCount++;
     logSyslog.registerSyslog(logId, logLevel, facility, appName);
 }
 
@@ -625,11 +621,11 @@ void Elog::queryProcessIncomingCmd(const char* command)
 void Elog::queryStateDisabled(char c)
 {
     if (c == ' ') {
-        if (registeredSpiffsCount > 0) {
+        if (logSpiffs.registeredCount() > 0) {
             queryDevice = SPIFFS;
-        } else if (registeredSdCount > 0) {
+        } else if (logSD.registeredCount() > 0) {
             queryDevice = SD;
-        } else if (registeredSerialCount > 0) {
+        } else if (logSerial.registeredCount() > 0) {
             queryDevice = SER;
         } else {
             querySerial->println("No SPIFFS,SD or serial registered. Exiting query mode");
@@ -698,13 +694,13 @@ void Elog::queryCmdHelp()
     querySerial->println("\nQuery commandline help. Commands:\n");
     querySerial->println("help (print this help)");
     querySerial->println("exit (exit query mode)");
-    if (registeredSdCount > 0)
+    if (logSD.registeredCount() > 0)
         querySerial->println("sd (change to SD filesystem)");
-    if (registeredSpiffsCount > 0)
+    if (logSpiffs.registeredCount() > 0)
         querySerial->println("spiffs (change to SPIFFS filesystem)");
-    if (registeredSerialCount > 0)
+    if (logSerial.registeredCount() > 0)
         querySerial->println("serial (change to Serial port)");
-    if (registeredSyslogCount > 0)
+    if (logSyslog.registeredCount() > 0)
         querySerial->println("syslog (change to Syslog)");
     querySerial->println("status (print the status of the logger)");
 
@@ -724,7 +720,7 @@ void Elog::queryCmdHelp()
  */
 void Elog::queryCmdSpiffs()
 {
-    if (registeredSpiffsCount == 0) {
+    if (logSpiffs.registeredCount() == 0) {
         querySerial->println("No SPIFFS registered");
         return;
     }
@@ -738,7 +734,7 @@ void Elog::queryCmdSpiffs()
  */
 void Elog::queryCmdSd()
 {
-    if (registeredSdCount == 0) {
+    if (logSD.registeredCount() == 0) {
         querySerial->println("No SD registered");
         return;
     }
@@ -752,7 +748,7 @@ void Elog::queryCmdSd()
  */
 void Elog::queryCmdSerial()
 {
-    if (registeredSerialCount == 0) {
+    if (logSerial.registeredCount() == 0) {
         querySerial->println("No Serial registered");
         return;
     }
@@ -766,7 +762,7 @@ void Elog::queryCmdSerial()
  */
 void Elog::queryCmdSyslog()
 {
-    if (registeredSyslogCount == 0) {
+    if (logSyslog.registeredCount() == 0) {
         querySerial->println("No Syslog registered");
         return;
     }
@@ -910,16 +906,16 @@ void Elog::queryCmdStatus()
     querySerial->printf("log buffer, lines buffered: %d\n", bufferStats.messagesBuffered);
     querySerial->printf("log buffer, lines discarded: %d\n", bufferStats.messagesDiscarded);
 
-    if (registeredSerialCount > 0) {
+    if (logSerial.registeredCount() > 0) {
         logSerial.queryCmdStatus();
     }
-    if (registeredSpiffsCount > 0) {
+    if (logSpiffs.registeredCount() > 0) {
         logSpiffs.queryCmdStatus();
     }
-    if (registeredSdCount > 0) {
+    if (logSD.registeredCount() > 0) {
         logSD.queryCmdStatus();
     }
-    if (registeredSyslogCount > 0) {
+    if (logSyslog.registeredCount() > 0) {
         logSyslog.queryCmdStatus();
     }
 }

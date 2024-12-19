@@ -130,11 +130,6 @@ private:
     Formatting formatter;
     LogRingBuff<LogLineEntry> ringBuff;
 
-    uint8_t registeredSpiffsCount = 0;
-    uint8_t registeredSdCount = 0;
-    uint8_t registeredSyslogCount = 0;
-    uint8_t registeredSerialCount = 0;
-
     Stream* internalLogDevice = &Serial;
     uint8_t internalLogLevel = ELOG_LEVEL_ERROR; // Tell library user when he is doing something wrong by default
 

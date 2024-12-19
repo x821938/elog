@@ -153,6 +153,13 @@ void LogSerial::outputStats()
     Logger.logInternal(ELOG_LEVEL_INFO, "Serial stats. Messages written: %d, Bytes written: %d", stats.messagesWrittenTotal, stats.bytesWrittenTotal);
 }
 
+/* Return the number of registrations
+ */
+uint8_t LogSerial::registeredCount()
+{
+    return registeredSerialCount;
+}
+
 /* Enable the query serial port
  * querySerial: the serial port for query commands
  */

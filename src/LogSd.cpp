@@ -224,6 +224,13 @@ void LogSD::peekStop()
     peekEnabled = false;
 }
 
+/* Return the number of registrations
+ */
+uint8_t LogSD::registeredCount()
+{
+    return registeredSdCount;
+}
+
 /* Print the help specific for the SD file system
  */
 void LogSD::queryCmdHelp()

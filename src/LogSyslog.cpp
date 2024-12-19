@@ -162,6 +162,13 @@ void LogSyslog::outputStats()
     }
 }
 
+/* Return the number of registrations
+ */
+uint8_t LogSyslog::registeredCount()
+{
+    return syslogSettingsCount;
+}
+
 /* Enable the query serial port
  * querySerial: the serial port for query commands
  */

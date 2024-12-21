@@ -120,11 +120,14 @@ void LogSyslog::write(const LogLineEntry logLineEntry, Setting& setting)
     // Date and time is not included in the syslog message. It is assumed that the syslog server will add it
     int len = snprintf((char*)buffer, 256, "<%d>%s %s: %s", priority, syslogHostname, setting.appName, logLineEntry.logMessage);
 
-    syslogUdp.beginPacket(syslogServer, syslogPort);
-    uint32_t sentBytes = syslogUdp.write(buffer, len);
-    syslogUdp.endPacket();
+    uint32_t sentBytes = 0;
+    int success = 0;
+    if (syslogUdp.beginPacket(syslogServer, syslogPort) == 1) {
+        sentBytes = syslogUdp.write(buffer, len);
+        success = syslogUdp.endPacket();
+    }
 
-    if (sentBytes == len) {
+    if (success && sentBytes == len) {
         stats.bytesWrittenTotal += len;
         stats.messagesWrittenTotal++;
     } else {

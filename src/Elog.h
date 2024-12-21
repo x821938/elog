@@ -56,17 +56,25 @@ public:
     void logHex(uint8_t logId, uint8_t logLevel, const char* message, const uint8_t* data, uint16_t length);
     void configureSerial(const uint8_t maxRegistrations = 10);
     void registerSerial(const uint8_t logId, const uint8_t logLevel, const char* serviceName, Stream& serial = Serial, const uint8_t logFlags = 0);
+    uint8_t getSerialLogLevel(const uint8_t logId, Stream& serial = Serial);
+    void setSerialLogLevel(const uint8_t logId, const uint8_t logLevel, Stream& serial = Serial);
 #ifdef ELOG_SPIFFS_ENABLE
     void configureSpiffs(const uint8_t maxRegistrations = 10);
     void registerSpiffs(const uint8_t logId, const uint8_t logLevel, const char* fileName, const uint8_t logFlags = FLAG_NONE, const uint32_t maxLogFileSize = 100000);
+    uint8_t getSpiffsLogLevel(const uint8_t logId, const char* fileName);
+    void setSpiffsLogLevel(const uint8_t logId, const uint8_t logLevel, const char* fileName);
 #endif // ELOG_SPIFFS_ENABLE
 #ifdef ELOG_SD_ENABLE
     void configureSd(SPIClass& spi, const uint8_t cs, const uint32_t speed = 2000000, const uint8_t spiOption = DEDICATED_SPI, const uint8_t maxFilesettings = 10);
     void registerSd(const uint8_t logId, const uint8_t logLevel, const char* fileName, const uint8_t logFlags = FLAG_NONE, const uint32_t maxLogFileSize = 100000);
+    uint8_t getSdLogLevel(const uint8_t logId, const char* fileName);
+    void setSdLogLevel(const uint8_t logId, const uint8_t logLevel, const char* fileName);
 #endif // ELOG_SD_ENABLE
 #ifdef ELOG_SYSLOG_ENABLE
     void configureSyslog(const char* server, uint16_t port = 514, const char* hostname = "esp32", const uint8_t maxRegistrations = 10);
     void registerSyslog(const uint8_t logId, const uint8_t logLevel, const uint8_t facility, const char* appName);
+    uint8_t getSyslogLogLevel(const uint8_t logId, const uint8_t facility);
+    void setSyslogLogLevel(const uint8_t logId, const uint8_t logLevel, const uint8_t facility);
 #endif // ELOG_SYSLOG_ENABLE
     void configureInternalLogging(Stream& internalLogDevice, uint8_t internalLogLevel = ELOG_LEVEL_ERROR, uint16_t statsEvery = 10000);
     void enableQuery(Stream& serialPort);

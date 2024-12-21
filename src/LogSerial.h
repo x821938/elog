@@ -25,6 +25,8 @@ public:
     void begin();
     void configure(const uint8_t maxRegistrations);
     void registerSerial(const uint8_t logId, const uint8_t loglevel, const char* serviceName, Stream& serial, const uint8_t logFlags);
+    uint8_t getLogLevel(const uint8_t logId, Stream& serial);
+    void setLogLevel(const uint8_t logId, const uint8_t loglevel, Stream& serial);
     void outputFromBuffer(const LogLineEntry logLineEntry, bool muteSerialOutput);
     void handlePeek(const LogLineEntry logLineEntry, const uint8_t settingIndex);
     bool mustLog(const uint8_t logId, const uint8_t logLevel);

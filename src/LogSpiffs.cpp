@@ -71,6 +71,28 @@ void LogSpiffs::registerSpiffs(const uint8_t logId, const uint8_t loglevel, cons
     Logger.logInternal(ELOG_LEVEL_INFO, "Registered SPIFFS log id %d, level %s, filename %s", logId, logLevelStr, fileName);
 }
 
+uint8_t LogSpiffs::getLogLevel(const uint8_t logId, const char* fileName)
+{
+    for (uint8_t i = 0; i < fileSettingsCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && strcmp(settings->fileName, fileName) == 0) {
+            return setting->logLevel;
+        }
+    }
+
+    return ELOG_LEVEL_NOLOG;
+}
+
+void LogSpiffs::setLogLevel(const uint8_t logId, const uint8_t loglevel, const char* fileName)
+{
+    for (uint8_t i = 0; i < fileSettingsCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && strcmp(settings->fileName, fileName) == 0) {
+            setting->logLevel = loglevel;
+        }
+    }
+}
+
 /* Output the logline to the SPIFFS log files. Traverse all registered log files and output to the ones that match the logId and logLevel
  * logLineEntry: The logline to output
  */

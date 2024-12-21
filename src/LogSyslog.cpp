@@ -64,6 +64,28 @@ void LogSyslog::registerSyslog(const uint8_t logId, const uint8_t loglevel, cons
     Logger.logInternal(ELOG_LEVEL_INFO, "Registered syslog id %d, level %s, facility %d, app name %s", logId, logLevelStr, facility, appName);
 }
 
+uint8_t LogSyslog::getLogLevel(const uint8_t logId, const uint8_t facility)
+{
+    for (uint8_t i = 0; i < syslogSettingsCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && setting->facility == facility) {
+            return setting->logLevel;
+        }
+    }
+
+    return ELOG_LEVEL_NOLOG;
+}
+
+void LogSyslog::setLogLevel(const uint8_t logId, const uint8_t loglevel, const uint8_t facility)
+{
+    for (uint8_t i = 0; i < syslogSettingsCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && setting->facility == facility) {
+            setting->logLevel = loglevel;
+        }
+    }
+}
+
 /* Output the logline to the registered syslogs
  * logLineEntry: the log line entry
  */

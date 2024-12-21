@@ -195,6 +195,26 @@ void Elog::registerSerial(const uint8_t logId, const uint8_t logLevel, const cha
     logSerial.registerSerial(logId, logLevel, serviceName, serial, logFlags);
 }
 
+uint8_t Elog::getSerialLogLevel(const uint8_t logId, Stream& serial)
+{
+    if (!logStarted) {
+        configure();
+    }
+    return logSerial.getLogLevel(logId, serial);
+}
+
+void Elog::setSerialLogLevel(const uint8_t logId, const uint8_t logLevel, Stream& serial)
+{
+    if (!logStarted) {
+        configure();
+    }
+    if (logLevel > ELOG_LEVEL_NOLOG) {
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
+        return;
+    }
+    logSerial.setLogLevel(logId, logLevel, serial);
+}
+
 #ifdef ELOG_SPIFFS_ENABLE
 /**
  * Configure the SPIFFS. If this is not called by the user a default configuration of 10 will be used
@@ -227,6 +247,23 @@ void Elog::registerSpiffs(const uint8_t logId, const uint8_t logLevel, const cha
     }
     logSpiffs.registerSpiffs(logId, logLevel, fileName, logFlags, maxLogFileSize);
 }
+
+uint8_t Elog::getSpiffsLogLevel(const uint8_t logId, const char* fileName)
+{
+    if (!logStarted) {
+        configure();
+    }
+    return logSpiffs.getLogLevel(logId, fileName);
+}
+
+void Elog::setSpiffsLogLevel(const uint8_t logId, const uint8_t logLevel, const char* fileName)
+{
+    if (!logStarted) {
+        configure();
+    }
+    logSpiffs.setLogLevel(logId, logLevel, fileName);
+}
+
 #endif // ELOG_SPIFFS_ENABLE
 
 #ifdef ELOG_SD_ENABLE
@@ -265,6 +302,23 @@ void Elog::registerSd(const uint8_t logId, const uint8_t logLevel, const char* f
     }
     logSD.registerSd(logId, logLevel, fileName, logFlags, maxLogFileSize);
 }
+
+uint8_t Elog::getSdLogLevel(const uint8_t logId, const char* fileName)
+{
+    if (!logStarted) {
+        configure();
+    }
+    return logSD.getLogLevel(logId, fileName);
+}
+
+void Elog::setSdLogLevel(const uint8_t logId, const uint8_t logLevel, const char* fileName)
+{
+    if (!logStarted) {
+        configure();
+    }
+    logSD.setLogLevel(logId, logLevel, fileName);
+}
+
 #endif // ELOG_SD_ENABLE
 
 #ifdef ELOG_SYSLOG_ENABLE
@@ -299,6 +353,22 @@ void Elog::registerSyslog(const uint8_t logId, const uint8_t logLevel, const uin
         return;
     }
     logSyslog.registerSyslog(logId, logLevel, facility, appName);
+}
+
+uint8_t Elog::getSyslogLogLevel(const uint8_t logId, const uint8_t facility)
+{
+    if (!logStarted) {
+        configure();
+    }
+    return logSyslog.getLogLevel(logId, facility);
+}
+
+void Elog::setSyslogLogLevel(const uint8_t logId, const uint8_t logLevel, const uint8_t facility)
+{
+    if (!logStarted) {
+        configure();
+    }
+    logSyslog.setLogLevel(logId, logLevel, facility);
 }
 
 #endif // ELOG_SYSLOG_ENABLE

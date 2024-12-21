@@ -53,6 +53,28 @@ void LogSerial::registerSerial(const uint8_t logId, const uint8_t loglevel, cons
     Logger.logInternal(ELOG_LEVEL_INFO, "Registered Serial log id %d, level %s, serviceName %s", logId, logLevelStr, serviceName);
 }
 
+uint8_t LogSerial::getLogLevel(const uint8_t logId, Stream& serial)
+{
+    for (uint8_t i = 0; i < registeredSerialCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && setting->serial == &serial) {
+            return setting->logLevel;
+        }
+    }
+
+    return ELOG_LEVEL_NOLOG;
+}
+
+void LogSerial::setLogLevel(const uint8_t logId, const uint8_t loglevel, Stream& serial)
+{
+    for (uint8_t i = 0; i < registeredSerialCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && setting->serial == &serial) {
+            setting->logLevel = loglevel;
+        }
+    }
+}
+
 /* Output the logline to the registered serial ports
  * logLineEntry: the log line entry
  * muteSerialOutput: if true, the logline will not be output to the serial port

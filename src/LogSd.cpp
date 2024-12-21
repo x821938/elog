@@ -90,6 +90,28 @@ void LogSD::registerSd(const uint8_t logId, const uint8_t loglevel, const char* 
     Logger.logInternal(ELOG_LEVEL_INFO, "Registered SD log id %d, level %s, filename %s", logId, logLevelStr, fileName);
 }
 
+uint8_t LogSD::getLogLevel(const uint8_t logId, const char* fileName)
+{
+    for (uint8_t i = 0; i < registeredSdCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && strcmp(settings->fileName, fileName) == 0) {
+            return setting->logLevel;
+        }
+    }
+
+    return ELOG_LEVEL_NOLOG;
+}
+
+void LogSD::setLogLevel(const uint8_t logId, const uint8_t loglevel, const char* fileName)
+{
+    for (uint8_t i = 0; i < registeredSdCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && strcmp(settings->fileName, fileName) == 0) {
+            setting->logLevel = loglevel;
+        }
+    }
+}
+
 /* Output the logline to the SD log files. Traverse all registered log files and output to the ones that match the logId and logLevel
  * logLineEntry: The logline to output
  */

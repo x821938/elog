@@ -13,6 +13,7 @@ class LogSerial {
         Stream* serial;
         const char* serviceName;
         uint8_t logLevel;
+        uint8_t lastMsgLogLevel;
         uint8_t logFlags;
     };
 
@@ -27,6 +28,7 @@ public:
     void registerSerial(const uint8_t logId, const uint8_t loglevel, const char* serviceName, Stream& serial, const uint8_t logFlags);
     uint8_t getLogLevel(const uint8_t logId, Stream& serial);
     void setLogLevel(const uint8_t logId, const uint8_t loglevel, Stream& serial);
+    uint8_t getLastMsgLogLevel(const uint8_t logId, Stream& serial);
     void outputFromBuffer(const LogLineEntry logLineEntry, bool muteSerialOutput);
     void handlePeek(const LogLineEntry logLineEntry, const uint8_t settingIndex);
     bool mustLog(const uint8_t logId, const uint8_t logLevel);

@@ -58,6 +58,7 @@ void LogSyslog::registerSyslog(const uint8_t logId, const uint8_t loglevel, cons
     setting->appName = appName;
     setting->facility = facility;
     setting->logLevel = loglevel;
+    setting->lastMsgLogLevel = ELOG_LEVEL_NOLOG;
 
     char logLevelStr[10];
     formatter.getLogLevelStringRaw(logLevelStr, loglevel);
@@ -86,6 +87,18 @@ void LogSyslog::setLogLevel(const uint8_t logId, const uint8_t loglevel, const u
     }
 }
 
+uint8_t LogSyslog::getLastMsgLogLevel(const uint8_t logId, const uint8_t facility)
+{
+    for (uint8_t i = 0; i < syslogSettingsCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && setting->facility == facility) {
+            return setting->lastMsgLogLevel;
+        }
+    }
+
+    return ELOG_LEVEL_NOLOG;
+}
+
 /* Output the logline to the registered syslogs
  * logLineEntry: the log line entry
  */
@@ -95,6 +108,7 @@ void LogSyslog::outputFromBuffer(const LogLineEntry logLineEntry)
         Setting* setting = &settings[i];
         if (setting->logId == logLineEntry.logId && setting->logLevel != ELOG_LEVEL_NOLOG) {
             if (logLineEntry.logLevel <= setting->logLevel) {
+                setting->lastMsgLogLevel = logLineEntry.logLevel;
                 write(logLineEntry, *setting);
             }
             handlePeek(logLineEntry, i); // If peek is enabled from query command

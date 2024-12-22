@@ -215,6 +215,14 @@ void Elog::setSerialLogLevel(const uint8_t logId, const uint8_t logLevel, Stream
     logSerial.setLogLevel(logId, logLevel, serial);
 }
 
+uint8_t Elog::getSerialLastMsgLogLevel(const uint8_t logId, Stream& serial)
+{
+    if (!logStarted) {
+        configure();
+    }
+    return logSerial.getLastMsgLogLevel(logId, serial);
+}
+
 #ifdef ELOG_SPIFFS_ENABLE
 /**
  * Configure the SPIFFS. If this is not called by the user a default configuration of 10 will be used
@@ -262,6 +270,14 @@ void Elog::setSpiffsLogLevel(const uint8_t logId, const uint8_t logLevel, const 
         configure();
     }
     logSpiffs.setLogLevel(logId, logLevel, fileName);
+}
+
+uint8_t Elog::getSpiffsLastMsgLogLevel(const uint8_t logId, const char* fileName)
+{
+    if (!logStarted) {
+        configure();
+    }
+    return logSpiffs.getLastMsgLogLevel(logId, fileName);
 }
 
 #endif // ELOG_SPIFFS_ENABLE
@@ -319,6 +335,14 @@ void Elog::setSdLogLevel(const uint8_t logId, const uint8_t logLevel, const char
     logSD.setLogLevel(logId, logLevel, fileName);
 }
 
+uint8_t Elog::getSdLastMsgLogLevel(const uint8_t logId, const char* fileName)
+{
+    if (!logStarted) {
+        configure();
+    }
+    return logSD.getLastMsgLogLevel(logId, fileName);
+}
+
 #endif // ELOG_SD_ENABLE
 
 #ifdef ELOG_SYSLOG_ENABLE
@@ -369,6 +393,14 @@ void Elog::setSyslogLogLevel(const uint8_t logId, const uint8_t logLevel, const 
         configure();
     }
     logSyslog.setLogLevel(logId, logLevel, facility);
+}
+
+uint8_t Elog::getSyslogLastMsgLogLevel(const uint8_t logId, const uint8_t facility)
+{
+    if (!logStarted) {
+        configure();
+    }
+    return logSyslog.getLastMsgLogLevel(logId, facility);
 }
 
 #endif // ELOG_SYSLOG_ENABLE

@@ -17,6 +17,7 @@ struct LogLineEntry {
     uint32_t timestamp;
     uint8_t logId;
     uint8_t logLevel;
+    uint8_t lastMsgLogLevel;
     Stream* internalLogDevice;
     const char* logMessage;
 };

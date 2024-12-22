@@ -31,6 +31,7 @@ class LogSD {
         file_t* sdFileHandle;
         const char* fileName;
         uint8_t logLevel;
+        uint8_t lastMsgLogLevel;
         uint32_t sdFileCreteLastTry;
         uint8_t logFlags;
         uint8_t fileNumber;
@@ -50,6 +51,7 @@ public:
     void registerSd(const uint8_t logId, const uint8_t loglevel, const char* fileName, const uint8_t logFlags, const uint32_t maxLogFileSize);
     uint8_t getLogLevel(const uint8_t logId, const char* fileName);
     void setLogLevel(const uint8_t logId, const uint8_t loglevel, const char* fileName);
+    uint8_t getLastMsgLogLevel(const uint8_t logId, const char* fileName);
     void outputFromBuffer(const LogLineEntry logLineEntry);
     void handlePeek(const LogLineEntry logLineEntry, const uint8_t settingIndex);
     void write(const LogLineEntry logLineEntry, Setting& setting);

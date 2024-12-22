@@ -46,6 +46,7 @@ void LogSerial::registerSerial(const uint8_t logId, const uint8_t loglevel, cons
     setting->serial = &serial;
     setting->serviceName = serviceName;
     setting->logLevel = loglevel;
+    setting->lastMsgLogLevel = ELOG_LEVEL_NOLOG;
     setting->logFlags = logFlags;
 
     char logLevelStr[10];
@@ -75,6 +76,18 @@ void LogSerial::setLogLevel(const uint8_t logId, const uint8_t loglevel, Stream&
     }
 }
 
+uint8_t LogSerial::getLastMsgLogLevel(const uint8_t logId, Stream& serial)
+{
+    for (uint8_t i = 0; i < registeredSerialCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && setting->serial == &serial) {
+            return setting->lastMsgLogLevel;
+        }
+    }
+
+    return ELOG_LEVEL_NOLOG;
+}
+
 /* Output the logline to the registered serial ports
  * logLineEntry: the log line entry
  * muteSerialOutput: if true, the logline will not be output to the serial port
@@ -89,6 +102,7 @@ void LogSerial::outputFromBuffer(const LogLineEntry logLineEntry, bool muteSeria
             Setting* setting = &settings[i];
             if (setting->logId == logLineEntry.logId && setting->logLevel != ELOG_LEVEL_NOLOG) {
                 if (logLineEntry.logLevel <= setting->logLevel && !muteSerialOutput) {
+                    setting->lastMsgLogLevel = logLineEntry.logLevel;
                     write(logLineEntry, *setting);
                 }
                 handlePeek(logLineEntry, i); // If peek is enabled from query command

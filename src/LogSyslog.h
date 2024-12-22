@@ -14,6 +14,7 @@ class LogSyslog {
         const char* appName;
         uint8_t facility;
         uint8_t logLevel;
+        uint8_t lastMsgLogLevel;
     };
 
     struct Stats {
@@ -28,6 +29,7 @@ public:
     void registerSyslog(const uint8_t logId, const uint8_t loglevel, const uint8_t facility, const char* appName);
     uint8_t getLogLevel(const uint8_t logId, const uint8_t facility);
     void setLogLevel(const uint8_t logId, const uint8_t loglevel, const uint8_t facility);
+    uint8_t getLastMsgLogLevel(const uint8_t logId, const uint8_t facility);
     void outputFromBuffer(const LogLineEntry logLineEntry);
     void handlePeek(const LogLineEntry logLineEntry, const uint8_t settingIndex);
     bool mustLog(const uint8_t logId, const uint8_t logLevel);

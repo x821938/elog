@@ -60,6 +60,7 @@ void LogSpiffs::registerSpiffs(const uint8_t logId, const uint8_t loglevel, cons
     setting->logId = logId;
     setting->fileName = fileName;
     setting->logLevel = loglevel;
+    setting->lastMsgLogLevel = ELOG_LEVEL_NOLOG;
     setting->fileNumber = 0;
     setting->bytesWritten = 0;
     setting->maxLogFileSize = maxLogFileSize;
@@ -93,6 +94,18 @@ void LogSpiffs::setLogLevel(const uint8_t logId, const uint8_t loglevel, const c
     }
 }
 
+uint8_t LogSpiffs::getLastMsgLogLevel(const uint8_t logId, const char* fileName)
+{
+    for (uint8_t i = 0; i < fileSettingsCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && strcmp(settings->fileName, fileName) == 0) {
+            return setting->lastMsgLogLevel;
+        }
+    }
+
+    return ELOG_LEVEL_NOLOG;
+}
+
 /* Output the logline to the SPIFFS log files. Traverse all registered log files and output to the ones that match the logId and logLevel
  * logLineEntry: The logline to output
  */
@@ -102,6 +115,7 @@ void LogSpiffs::outputFromBuffer(const LogLineEntry logLineEntry)
         Setting* setting = &settings[i];
         if (setting->logId == logLineEntry.logId && setting->logLevel != ELOG_LEVEL_NOLOG) {
             if (logLineEntry.logLevel <= setting->logLevel) {
+                setting->lastMsgLogLevel = logLineEntry.logLevel;
                 if (ensureFilesystemConfigured()) {
                     write(logLineEntry, *setting);
                     allFilesSync();

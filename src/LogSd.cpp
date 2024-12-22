@@ -78,6 +78,7 @@ void LogSD::registerSd(const uint8_t logId, const uint8_t loglevel, const char* 
     setting->sdFileHandle = new file_t();
     setting->fileName = fileName;
     setting->logLevel = loglevel;
+    setting->lastMsgLogLevel = ELOG_LEVEL_NOLOG;
     setting->maxLogFileSize = maxLogFileSize;
     setting->fileNumber = 0;
     setting->bytesWritten = 0;
@@ -112,6 +113,18 @@ void LogSD::setLogLevel(const uint8_t logId, const uint8_t loglevel, const char*
     }
 }
 
+uint8_t LogSD::getLastMsgLogLevel(const uint8_t logId, const char* fileName)
+{
+    for (uint8_t i = 0; i < registeredSdCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && strcmp(settings->fileName, fileName) == 0) {
+            return setting->lastMsgLogLevel;
+        }
+    }
+
+    return ELOG_LEVEL_NOLOG;
+}
+
 /* Output the logline to the SD log files. Traverse all registered log files and output to the ones that match the logId and logLevel
  * logLineEntry: The logline to output
  */
@@ -121,6 +134,7 @@ void LogSD::outputFromBuffer(const LogLineEntry logLineEntry)
         Setting* setting = &settings[i];
         if (setting->logId == logLineEntry.logId && setting->logLevel != ELOG_LEVEL_NOLOG) {
             if (logLineEntry.logLevel <= setting->logLevel) {
+                setting->lastMsgLogLevel = logLineEntry.logLevel;
                 write(logLineEntry, *setting);
             }
             handlePeek(logLineEntry, i); // If peek is enabled from query command

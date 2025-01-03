@@ -30,7 +30,7 @@ void setup()
     Logger.configureSyslog(syslogServer, syslogPort, "esp32"); // Syslog server IP, port and device name
 
     Logger.registerSerial(COUNTER, ELOG_LEVEL_DEBUG, "COUNT", Serial); // Log both to serial...
-    Logger.registerSyslog(COUNTER, ELOG_LEVEL_DEBUG, FAC_USER, "counter"); // ...and syslog. Set the facility to user
+    Logger.registerSyslog(COUNTER, ELOG_LEVEL_DEBUG, ELOG_FAC_USER, "counter"); // ...and syslog. Set the facility to user
 
     connect_wifi();
 }

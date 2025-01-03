@@ -13,22 +13,22 @@ void Formatting::getLogStamp(char* output, const uint32_t logTime, const uint8_t
     char logServiceStr[LENGTH_OF_SERVICE] = { 0 };
     char logLevelStr[LENGTH_OF_LEVEL] = { 0 };
 
-    if (!(logFlags & FLAG_NO_TIME)) {
-        if (logFlags & FLAG_TIME_SIMPLE)
+    if (!(logFlags & ELOG_FLAG_NO_TIME)) {
+        if (logFlags & ELOG_FLAG_TIME_SIMPLE)
             getSimpleTimeString(timeStr, logTime);
-        else if (logFlags & FLAG_TIME_LONG)
+        else if (logFlags & ELOG_FLAG_TIME_LONG)
             getTimeLongString(timeStr, logTime);
-        else if (logFlags & FLAG_TIME_SHORT)
+        else if (logFlags & ELOG_FLAG_TIME_SHORT)
             getTimeMillisString(timeStr, logTime, true);
         else // default to long time
             getTimeLongString(timeStr, logTime);
     }
 
-    if (!(logFlags & FLAG_NO_SERVICE)) {
-        getServiceString(logServiceStr, serviceName, logFlags & FLAG_SERVICE_LONG);
+    if (!(logFlags & ELOG_FLAG_NO_SERVICE)) {
+        getServiceString(logServiceStr, serviceName, logFlags & ELOG_FLAG_SERVICE_LONG);
     }
 
-    if (!(logFlags & FLAG_NO_LEVEL)) {
+    if (!(logFlags & ELOG_FLAG_NO_LEVEL)) {
         getLogLevelString(logLevelStr, logLevel);
     }
     strcpy(output, timeStr);

@@ -23,14 +23,14 @@ struct LogLineEntry {
 };
 
 enum LogFlags {
-    FLAG_NONE = 0x00,
-    FLAG_NO_TIME = 0x01,
-    FLAG_NO_SERVICE = 0x02,
-    FLAG_NO_LEVEL = 0x04,
-    FLAG_TIME_SIMPLE = 0x08,
-    FLAG_TIME_SHORT = 0x10,
-    FLAG_TIME_LONG = 0x20,
-    FLAG_SERVICE_LONG = 0x40
+    ELOG_FLAG_NONE = 0x00,
+    ELOG_FLAG_NO_TIME = 0x01,
+    ELOG_FLAG_NO_SERVICE = 0x02,
+    ELOG_FLAG_NO_LEVEL = 0x04,
+    ELOG_FLAG_TIME_SIMPLE = 0x08,
+    ELOG_FLAG_TIME_SHORT = 0x10,
+    ELOG_FLAG_TIME_LONG = 0x20,
+    ELOG_FLAG_SERVICE_LONG = 0x40
 };
 
 enum LogLevel {
@@ -46,30 +46,30 @@ enum LogLevel {
 };
 
 enum LogFacility {
-    FAC_KERN = 0,
-    FAC_USER = 1,
-    FAC_MAIL = 2,
-    FAC_DAEMON = 3,
-    FAC_AUTH = 4,
-    FAC_SYSLOG = 5,
-    FAC_LPR = 6,
-    FAC_NEWS = 7,
-    FAC_UUCP = 8,
-    FAC_CRON = 9,
-    FAC_AUTHPRIV = 10,
-    FAC_FTP = 11,
-    FAC_NTP = 12,
-    FAC_LOG_AUDIT = 13,
-    FAC_LOG_ALERT = 14,
-    FAC_CLOCK_DAEMON = 15,
-    FAC_LOCAL0 = 16,
-    FAC_LOCAL1 = 17,
-    FAC_LOCAL2 = 18,
-    FAC_LOCAL3 = 19,
-    FAC_LOCAL4 = 20,
-    FAC_LOCAL5 = 21,
-    FAC_LOCAL6 = 22,
-    FAC_LOCAL7 = 23
+    ELOG_FAC_KERN = 0,
+    ELOG_FAC_USER = 1,
+    ELOG_FAC_MAIL = 2,
+    ELOG_FAC_DAEMON = 3,
+    ELOG_FAC_AUTH = 4,
+    ELOG_FAC_SYSLOG = 5,
+    ELOG_FAC_LPR = 6,
+    ELOG_FAC_NEWS = 7,
+    ELOG_FAC_UUCP = 8,
+    ELOG_FAC_CRON = 9,
+    ELOG_FAC_AUTHPRIV = 10,
+    ELOG_FAC_FTP = 11,
+    ELOG_FAC_NTP = 12,
+    ELOG_FAC_LOG_AUDIT = 13,
+    ELOG_FAC_LOG_ALERT = 14,
+    ELOG_FAC_CLOCK_DAEMON = 15,
+    ELOG_FAC_LOCAL0 = 16,
+    ELOG_FAC_LOCAL1 = 17,
+    ELOG_FAC_LOCAL2 = 18,
+    ELOG_FAC_LOCAL3 = 19,
+    ELOG_FAC_LOCAL4 = 20,
+    ELOG_FAC_LOCAL5 = 21,
+    ELOG_FAC_LOCAL6 = 22,
+    ELOG_FAC_LOCAL7 = 23
 };
 
 #endif // ELOG_COMMON_H

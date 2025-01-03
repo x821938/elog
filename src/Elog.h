@@ -61,14 +61,14 @@ public:
     uint8_t getSerialLastMsgLogLevel(const uint8_t logId, Stream& serial = Serial);
 #ifdef ELOG_SPIFFS_ENABLE
     void configureSpiffs(const uint8_t maxRegistrations = 10);
-    void registerSpiffs(const uint8_t logId, const uint8_t logLevel, const char* fileName, const uint8_t logFlags = FLAG_NONE, const uint32_t maxLogFileSize = 100000);
+    void registerSpiffs(const uint8_t logId, const uint8_t logLevel, const char* fileName, const uint8_t logFlags = ELOG_FLAG_NONE, const uint32_t maxLogFileSize = 100000);
     uint8_t getSpiffsLogLevel(const uint8_t logId, const char* fileName);
     void setSpiffsLogLevel(const uint8_t logId, const uint8_t logLevel, const char* fileName);
     uint8_t getSpiffsLastMsgLogLevel(const uint8_t logId, const char* fileName);
 #endif // ELOG_SPIFFS_ENABLE
 #ifdef ELOG_SD_ENABLE
     void configureSd(SPIClass& spi, const uint8_t cs, const uint32_t speed = 2000000, const uint8_t spiOption = DEDICATED_SPI, const uint8_t maxFilesettings = 10);
-    void registerSd(const uint8_t logId, const uint8_t logLevel, const char* fileName, const uint8_t logFlags = FLAG_NONE, const uint32_t maxLogFileSize = 100000);
+    void registerSd(const uint8_t logId, const uint8_t logLevel, const char* fileName, const uint8_t logFlags = ELOG_FLAG_NONE, const uint32_t maxLogFileSize = 100000);
     uint8_t getSdLogLevel(const uint8_t logId, const char* fileName);
     void setSdLogLevel(const uint8_t logId, const uint8_t logLevel, const char* fileName);
     uint8_t getSdLastMsgLogLevel(const uint8_t logId, const char* fileName);

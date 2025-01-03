@@ -23,7 +23,7 @@ void setup()
     Logger.configureSd(spi, 5, 2000000); // Set the speed of the SD card reader
 
     // Register some log IDs for logging
-    Logger.registerSerial(MAIN, ELOG_LEVEL_DEBUG, "count", Serial, FLAG_NO_SERVICE | FLAG_NO_LEVEL); // On serial, we don't want to show the service name and log level
+    Logger.registerSerial(MAIN, ELOG_LEVEL_DEBUG, "count", Serial, ELOG_FLAG_NO_SERVICE | ELOG_FLAG_NO_LEVEL); // On serial, we don't want to show the service name and log level
     Logger.registerSd(MAIN, ELOG_LEVEL_DEBUG, "main");
     Logger.registerSd(SUB_COUNTER, ELOG_LEVEL_ERROR, "subcount"); // We only want to log errors
     Logger.registerSd(HEX_LOG, ELOG_LEVEL_DEBUG, "hex");

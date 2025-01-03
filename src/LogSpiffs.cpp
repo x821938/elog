@@ -32,7 +32,7 @@ void LogSpiffs::configure(const uint8_t maxRegistrations)
  * logId: The id of the log
  * loglevel: The log level that should be logged
  * fileName: The name of the file (max 8 characters)
- * logFlags: The log flags (FLAG_NONE, FLAG_NO_SERVICE, FLAG_NO_TIMESTAMP, FLAG_NO_LEVEL, FLAG_NO_TIME, FLAG_TIME_SIMPLE, FLAG_TIME_LONG, FLAG_TIME_SHORT, FLAG_SERVICE_LONG)
+ * logFlags: The log flags (ELOG_FLAG_NONE, ELOG_FLAG_NO_SERVICE, ELOG_FLAG_NO_TIMESTAMP, ELOG_FLAG_NO_LEVEL, ELOG_FLAG_NO_TIME, ELOG_FLAG_TIME_SIMPLE, ELOG_FLAG_TIME_LONG, ELOG_FLAG_TIME_SHORT, ELOG_FLAG_SERVICE_LONG)
  * maxLogFileSize: The maximum size of the log file before it is rotated
  */
 void LogSpiffs::registerSpiffs(const uint8_t logId, const uint8_t loglevel, const char* fileName, const uint8_t logFlags, const uint32_t maxLogFileSize)
@@ -65,7 +65,7 @@ void LogSpiffs::registerSpiffs(const uint8_t logId, const uint8_t loglevel, cons
     setting->bytesWritten = 0;
     setting->maxLogFileSize = maxLogFileSize;
 
-    setting->logFlags |= FLAG_NO_SERVICE; // Servicename makes no sense in a file
+    setting->logFlags |= ELOG_FLAG_NO_SERVICE; // Servicename makes no sense in a file
 
     char logLevelStr[10];
     formatter.getLogLevelStringRaw(logLevelStr, loglevel);

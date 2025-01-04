@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include <LogFormat.h>
-#include <common.h>
+#include <LogCommon.h>
 
 using namespace std;
 

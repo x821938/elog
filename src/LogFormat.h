@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include <TimeLib.h>
-#include <common.h>
+#include <LogCommon.h>
 
 #define LENGTH_OF_TIME 25
 #define LENGTH_OF_SERVICE 10

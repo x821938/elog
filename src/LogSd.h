@@ -2,7 +2,7 @@
 #define ELOG_LOGSD_H
 
 #include <Arduino.h>
-#include <common.h>
+#include <LogCommon.h>
 
 #ifdef ELOG_SD_ENABLE
 

@@ -1,4 +1,4 @@
-// common.h is a workaround for importing littleFS and sdfat libraries in correct order.
+// LogCommon.h is a workaround for importing littleFS and sdfat libraries in correct order.
 // This is to avoid a lot of compilation warnings.
 
 #ifndef ELOG_COMMON_H

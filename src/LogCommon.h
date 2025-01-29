@@ -33,6 +33,7 @@ enum LogFlags {
     ELOG_FLAG_SERVICE_LONG = 0x40
 };
 
+// Don't forget to update logLevelStrings in LogFormat.cpp
 enum LogLevel {
     ELOG_LEVEL_EMERGENCY = 0,
     ELOG_LEVEL_ALERT = 1,
@@ -42,7 +43,9 @@ enum LogLevel {
     ELOG_LEVEL_NOTICE = 5,
     ELOG_LEVEL_INFO = 6,
     ELOG_LEVEL_DEBUG = 7,
-    ELOG_LEVEL_NOLOG = 8
+    ELOG_LEVEL_TRACE = 8,
+    ELOG_LEVEL_VERBOSE = 9,
+    ELOG_LEVEL_NOLOG = 10
 };
 
 enum LogFacility {

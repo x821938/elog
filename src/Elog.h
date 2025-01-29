@@ -85,6 +85,18 @@ public:
     void provideTime(const uint16_t year, const uint8_t month, const uint8_t day, const uint8_t hour, const uint8_t minute, const uint8_t second);
 
     template <class T, typename ...Args>
+    inline void verbose(uint16_t logId, T format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_VERBOSE, format, args...);
+    }
+
+    template <class T, typename ...Args>
+    inline void trace(uint16_t logId, T format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_TRACE, format, args...);
+    }
+
+    template <class T, typename ...Args>
     inline void debug(uint16_t logId, T format, Args ...args)
     {
         log(logId, ELOG_LEVEL_DEBUG, format, args...);

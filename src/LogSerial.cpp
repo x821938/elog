@@ -222,7 +222,7 @@ bool LogSerial::queryCmdPeek(const char* serviceName, const char* loglevel, cons
 {
     peekLoglevel = formatter.getLogLevelFromString(loglevel);
     if (peekLoglevel == ELOG_LEVEL_NOLOG) {
-        querySerial->printf("Invalid loglevel %s. Allowed values are: debug, info, notic, warn, error, crit, alert, emerg\n", loglevel);
+        querySerial->printf("Invalid loglevel %s. Allowed values are: verbo, trace, debug, info, notic, warn, error, crit, alert, emerg\n", loglevel);
         return false;
     }
 

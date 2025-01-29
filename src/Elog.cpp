@@ -39,7 +39,7 @@ void Elog::configure(uint16_t logLineCapacity, bool waitIfBufferFull)
 
 /** Log a message
  * @param logId the id of the log (must first be registered with registerSerial, registerSd or registerSpiffs)
- * @param logLevel the level of the log (DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)
+ * @param logLevel the level of the log (VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)
  * @param format the format of the log message (like printf)
  */
 void Elog::log(uint8_t logId, uint8_t logLevel, const char* format, ...)
@@ -47,8 +47,8 @@ void Elog::log(uint8_t logId, uint8_t logLevel, const char* format, ...)
     if (!logStarted) {
         Logger.configure();
     }
-    if (logLevel > ELOG_LEVEL_DEBUG) {
-        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY are the valid levels!");
+    if (logLevel > ELOG_LEVEL_VERBOSE) {
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY are the valid levels!");
         return;
     }
 
@@ -88,8 +88,8 @@ void Elog::log(uint8_t logId, uint8_t logLevel, const __FlashStringHelper* forma
     if (!logStarted) {
         Logger.configure();
     }
-    if (logLevel > ELOG_LEVEL_DEBUG) {
-        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY are the valid levels!");
+    if (logLevel > ELOG_LEVEL_VERBOSE) {
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY are the valid levels!");
         return;
     }
 
@@ -124,7 +124,7 @@ void Elog::log(uint8_t logId, uint8_t logLevel, const __FlashStringHelper* forma
 
 /** Log a message with hex data
  * @param logId the id of the log (must first be registered with registerSerial, registerSd or registerSpiffs)
- * @param logLevel the level of the log (DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)
+ * @param logLevel the level of the log (VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)
  * @param message a message to prepend to the hex data
  * @param data the data to log in hex format (should be typecasted to uint8_t*)
  * @param length the length of the data
@@ -134,8 +134,8 @@ void Elog::logHex(uint8_t logId, uint8_t logLevel, const char* message, const ui
     if (!logStarted) {
         configure();
     }
-    if (logLevel > ELOG_LEVEL_DEBUG) {
-        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY are the valid levels!");
+    if (logLevel > ELOG_LEVEL_VERBOSE) {
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY are the valid levels!");
         return;
     }
 
@@ -178,7 +178,7 @@ void Elog::configureSerial(const uint8_t maxRegistrations)
 
 /** Register a serial port for logging
  * @param logId the id of the log
- * @param logLevel the level of the log (DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)
+ * @param logLevel the level of the log (VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)
  * @param serviceName the name of the service
  * @param serial the serial port to log to (hardware or software serial). Default is "Serial"
  * @param logFlags flags for the log (see LogFlags.h)
@@ -189,7 +189,7 @@ void Elog::registerSerial(const uint8_t logId, const uint8_t logLevel, const cha
         configure();
     }
     if (logLevel > ELOG_LEVEL_NOLOG) {
-        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
         return;
     }
     logSerial.registerSerial(logId, logLevel, serviceName, serial, logFlags);
@@ -209,7 +209,7 @@ void Elog::setSerialLogLevel(const uint8_t logId, const uint8_t logLevel, Stream
         configure();
     }
     if (logLevel > ELOG_LEVEL_NOLOG) {
-        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
         return;
     }
     logSerial.setLogLevel(logId, logLevel, serial);
@@ -239,7 +239,7 @@ void Elog::configureSpiffs(const uint8_t maxRegistrations)
 /**
  * Register a SPIFFS for logging
  * @param logId the id of the log
- * @param logLevel the level of the log (DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)
+ * @param logLevel the level of the log (VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)
  * @param fileName the name of the file to log to
  * @param logFlags flags for the log (see LogFlags.h)
  * @param maxLogFileSize the maximum size of each log file in bytes. When the file reaches this size, it will be closed and a new file will be created
@@ -250,7 +250,7 @@ void Elog::registerSpiffs(const uint8_t logId, const uint8_t logLevel, const cha
         configure();
     }
     if (logLevel > ELOG_LEVEL_NOLOG) {
-        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
         return;
     }
     logSpiffs.registerSpiffs(logId, logLevel, fileName, logFlags, maxLogFileSize);
@@ -302,7 +302,7 @@ void Elog::configureSd(SPIClass& spi, uint8_t cs, uint32_t speed, uint8_t spiOpt
 
 /** Register a SD card for logging
  * @param logId the id of the log
- * @param logLevel the level of the log (DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)
+ * @param logLevel the level of the log (VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)
  * @param fileName the name of the file to log to
  * @param logFlags flags for the log (see LogFlags.h)
  * @param maxLogFileSize the maximum size of each log file in bytes. When the file reaches this size, it will be closed and a new file will be created
@@ -313,7 +313,7 @@ void Elog::registerSd(const uint8_t logId, const uint8_t logLevel, const char* f
         configure();
     }
     if (logLevel > ELOG_LEVEL_NOLOG) {
-        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
         return;
     }
     logSD.registerSd(logId, logLevel, fileName, logFlags, maxLogFileSize);
@@ -363,7 +363,7 @@ void Elog::configureSyslog(const char* server, uint16_t port, const char* hostna
 
 /** Register a Syslog server for logging
  * @param logId the id of the log
- * @param logLevel the level of the log (DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)
+ * @param logLevel the level of the log (VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)
  * @param facility the facility of the log (FAC_KERN, FAC_USER, FAC_MAIL, FAC_DAEMON, FAC_AUTH, FAC_SYSLOG, FAC_LPR, FAC_NEWS, FAC_UUCP, FAC_CRON, FAC_AUTHPRIV, FAC_FTP, FAC_NTP, FAC_LOG_AUDIT, FAC_LOG_ALERT, FAC_CLOCK_DAEMON, FAC_LOCAL0, FAC_LOCAL1, FAC_LOCAL2, FAC_LOCAL3, FAC_LOCAL4, FAC_LOCAL5, FAC_LOCAL6, FAC_LOCAL7)
  * @param appName the name of the application
  */
@@ -373,7 +373,7 @@ void Elog::registerSyslog(const uint8_t logId, const uint8_t logLevel, const uin
         configure();
     }
     if (logLevel > ELOG_LEVEL_NOLOG) {
-        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid logLevel! VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, NOLOG are the valid levels!");
         return;
     }
     logSyslog.registerSyslog(logId, logLevel, facility, appName);
@@ -408,7 +408,7 @@ uint8_t Elog::getSyslogLastMsgLogLevel(const uint8_t logId, const uint8_t facili
 /**
  * Configure the internal logging
  * @param internalLogDevice the device to log internal messages to (like Serial)
- * @param internalLogLevel the level of the internal log messages (DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY). Default is ERROR
+ * @param internalLogLevel the level of the internal log messages (VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY). Default is ERROR
  * @param statsEvery the time in milliseconds to output the log stats. Default is 10000 ms
  */
 void Elog::configureInternalLogging(Stream& internalLogDevice, uint8_t internalLogLevel, uint16_t statsEvery)
@@ -561,7 +561,7 @@ bool Elog::mustLog(uint8_t logId, uint8_t logLevel)
 
 /**
  * Log an internal message to the configured internal log device (provided with configureInternalLogging)
- * @param logLevel the level of the log (DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)
+ * @param logLevel the level of the log (VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)
  * @param format the format of the log message (like printf)
  * @param ... additional arguments to be formatted into the log message
  */

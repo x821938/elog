@@ -139,13 +139,15 @@ void Formatting::getLogLevelString(char* output, const uint8_t logLevel)
     sprintf(output, "[%-5s] ", logLevelRawString);
 }
 
+static const char* logLevelStrings[ELOG_LEVEL_NOLOG] =
+    { "EMERG", "ALERT", "CRIT", "ERROR", "WARN", "NOTIC", "INFO", "DEBUG", "TRACE", "VERBO" };
+
 /* Get the log level string in the format of LOGLEVEL
  * logLevel: the log level
  * output: the output string
  */
 void Formatting::getLogLevelStringRaw(char* output, const uint8_t logLevel)
 {
-    static const char* logLevelStrings[] = { "EMERG", "ALERT", "CRIT", "ERROR", "WARN", "NOTIC", "INFO", "DEBUG" };
     strcpy(output, logLevelStrings[logLevel]);
 }
 
@@ -155,7 +157,6 @@ void Formatting::getLogLevelStringRaw(char* output, const uint8_t logLevel)
  */
 uint8_t Formatting::getLogLevelFromString(const char* logLevel)
 {
-    static const char* logLevelStrings[] = { "EMERG", "ALERT", "CRIT", "ERROR", "WARN", "NOTIC", "INFO", "DEBUG" };
     for (uint8_t i = 0; i < 8; i++) {
         if (strcasecmp(logLevel, logLevelStrings[i]) == 0) {
             return i;

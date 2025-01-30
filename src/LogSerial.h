@@ -60,7 +60,7 @@ private:
 
     Stream* querySerial = nullptr;
 
-    void write(const LogLineEntry logLineEntry, Setting& setting);
+    void write(LogLineEntry logLineEntry, Setting& setting);
 };
 
 #endif // ELOG_LOGSERIAL_H

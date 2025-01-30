@@ -106,7 +106,8 @@ void LogSyslog::outputFromBuffer(const LogLineEntry logLineEntry)
 {
     for (uint8_t i = 0; i < syslogSettingsCount; i++) {
         Setting* setting = &settings[i];
-        if (setting->logId == logLineEntry.logId && setting->logLevel != ELOG_LEVEL_NOLOG) {
+        if (setting->logId == logLineEntry.logId &&
+            (setting->logLevel != ELOG_LEVEL_NOLOG || logLineEntry.logLevel == ELOG_LEVEL_ALWAYS)) {
             if (logLineEntry.logLevel <= setting->logLevel) {
                 setting->lastMsgLogLevel = logLineEntry.logLevel;
                 write(logLineEntry, *setting);
@@ -120,15 +121,17 @@ void LogSyslog::outputFromBuffer(const LogLineEntry logLineEntry)
  * logLineEntry: the log line entry
  * setting: the syslog setting
  */
-void LogSyslog::write(const LogLineEntry logLineEntry, Setting& setting)
+void LogSyslog::write(LogLineEntry logLineEntry, Setting& setting)
 {
+    static int const syslogLevel[ELOG_NUM_LOG_LEVELS] = { 6, 0, 1, 2, 3, 4, 5, 6, 7, 7, 7 };
+
     if (!WiFi.isConnected()) {
         stats.messagesDiscardedTotal++;
         Logger.logInternal(ELOG_LEVEL_WARNING, "WiFi not connected. Cannot send syslog message");
         return;
     }
 
-    uint8_t priority = logLineEntry.logLevel | (setting.facility << 3);
+    uint8_t priority = syslogLevel[logLineEntry.logLevel] | (setting.facility << 3);
 
     uint8_t buffer[256];
     // Date and time is not included in the syslog message. It is assumed that the syslog server will add it
@@ -184,7 +187,8 @@ bool LogSyslog::mustLog(const uint8_t logId, const uint8_t logLevel)
     for (uint8_t i = 0; i < syslogSettingsCount; i++) {
         Setting* setting = &settings[i];
         if (setting->logId == logId) {
-            if (logLevel <= setting->logLevel && setting->logLevel != ELOG_LEVEL_NOLOG) {
+            if (logLevel <= setting->logLevel &&
+                (setting->logLevel != ELOG_LEVEL_NOLOG || logLevel == ELOG_LEVEL_ALWAYS)) {
                 return true;
             }
         }
@@ -232,7 +236,7 @@ bool LogSyslog::queryCmdPeek(const char* appName, const char* loglevel, const ch
 {
     peekLoglevel = formatter.getLogLevelFromString(loglevel);
     if (peekLoglevel == ELOG_LEVEL_NOLOG) {
-        querySerial->printf("Invalid loglevel %s. Allowed values are: debug, info, notic, warn, error, crit, alert, emerg\n", loglevel);
+        querySerial->printf("Invalid loglevel %s. Allowed values are: verbo, trace, debug, info, notic, warn, error, crit, alert, emerg, alway\n", loglevel);
         return false;
     }
 

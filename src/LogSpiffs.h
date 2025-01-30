@@ -45,7 +45,7 @@ public:
     uint8_t getLastMsgLogLevel(const uint8_t logId, const char* fileName);
     void outputFromBuffer(const LogLineEntry logLineEntry);
     void handlePeek(const LogLineEntry logLineEntry, const uint8_t settingIndex);
-    void write(const LogLineEntry logLineEntry, Setting& setting);
+    void write(LogLineEntry logLineEntry, Setting& setting);
     bool mustLog(const uint8_t logId, const uint8_t logLevel);
     void outputStats();
     void enableQuery(Stream& querySerial);

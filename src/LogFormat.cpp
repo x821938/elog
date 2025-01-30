@@ -139,8 +139,8 @@ void Formatting::getLogLevelString(char* output, const uint8_t logLevel)
     sprintf(output, "[%-5s] ", logLevelRawString);
 }
 
-static const char* logLevelStrings[ELOG_LEVEL_NOLOG] =
-    { "EMERG", "ALERT", "CRIT", "ERROR", "WARN", "NOTIC", "INFO", "DEBUG", "TRACE", "VERBO" };
+static const char* logLevelStrings[ELOG_NUM_LOG_LEVELS] =
+    { "ALWAY", "EMERG", "ALERT", "CRIT", "ERROR", "WARN", "NOTIC", "INFO", "DEBUG", "TRACE", "VERBO" };
 
 /* Get the log level string in the format of LOGLEVEL
  * logLevel: the log level

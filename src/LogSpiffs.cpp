@@ -113,7 +113,8 @@ void LogSpiffs::outputFromBuffer(const LogLineEntry logLineEntry)
 {
     for (uint8_t i = 0; i < fileSettingsCount; i++) {
         Setting* setting = &settings[i];
-        if (setting->logId == logLineEntry.logId && setting->logLevel != ELOG_LEVEL_NOLOG) {
+        if (setting->logId == logLineEntry.logId &&
+            (setting->logLevel != ELOG_LEVEL_NOLOG || logLineEntry.logLevel == ELOG_LEVEL_ALWAYS)) {
             if (logLineEntry.logLevel <= setting->logLevel) {
                 setting->lastMsgLogLevel = logLineEntry.logLevel;
                 if (ensureFilesystemConfigured()) {
@@ -156,7 +157,7 @@ void LogSpiffs::handlePeek(const LogLineEntry logLineEntry, const uint8_t settin
  * logLineEntry: The logline to write
  * setting: The setting for the file
  */
-void LogSpiffs::write(const LogLineEntry logLineEntry, Setting& setting)
+void LogSpiffs::write(LogLineEntry logLineEntry, Setting& setting)
 {
     static char logStamp[LENGTH_OF_LOG_STAMP];
 
@@ -191,8 +192,9 @@ bool LogSpiffs::mustLog(const uint8_t logId, const uint8_t logLevel)
 {
     for (uint8_t i = 0; i < fileSettingsCount; i++) {
         Setting* setting = &settings[i];
-        if (setting->logId == logId && setting->logLevel != ELOG_LEVEL_NOLOG) {
-            if (logLevel <= setting->logLevel) {
+        if (setting->logId == logId) {
+            if (logLevel <= setting->logLevel &&
+                (setting->logLevel != ELOG_LEVEL_NOLOG || logLevel == ELOG_LEVEL_ALWAYS)) {
                 return true;
             }
         }

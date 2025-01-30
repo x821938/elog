@@ -100,7 +100,8 @@ void LogSerial::outputFromBuffer(const LogLineEntry logLineEntry, bool muteSeria
     } else {
         for (uint8_t i = 0; i < registeredSerialCount; i++) {
             Setting* setting = &settings[i];
-            if (setting->logId == logLineEntry.logId && setting->logLevel != ELOG_LEVEL_NOLOG) {
+            if (setting->logId == logLineEntry.logId &&
+                (setting->logLevel != ELOG_LEVEL_NOLOG || logLineEntry.logLevel == ELOG_LEVEL_ALWAYS)) {
                 if (logLineEntry.logLevel <= setting->logLevel && !muteSerialOutput) {
                     setting->lastMsgLogLevel = logLineEntry.logLevel;
                     write(logLineEntry, *setting);
@@ -146,7 +147,8 @@ bool LogSerial::mustLog(const uint8_t logId, const uint8_t logLevel)
     for (uint8_t i = 0; i < registeredSerialCount; i++) {
         Setting* setting = &settings[i];
         if (setting->logId == logId) {
-            if (logLevel <= setting->logLevel && setting->logLevel != ELOG_LEVEL_NOLOG) {
+            if (logLevel <= setting->logLevel &&
+                (setting->logLevel != ELOG_LEVEL_NOLOG || logLevel == ELOG_LEVEL_ALWAYS)) {
                 return true;
             }
         }
@@ -158,7 +160,7 @@ bool LogSerial::mustLog(const uint8_t logId, const uint8_t logLevel)
  * logLineEntry: the log line entry
  * setting: the setting for the serial port
  */
-void LogSerial::write(const LogLineEntry logLineEntry, Setting& setting)
+void LogSerial::write(LogLineEntry logLineEntry, Setting& setting)
 {
     static char logStamp[LENGTH_OF_LOG_STAMP];
     char* service;

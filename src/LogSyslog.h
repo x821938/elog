@@ -67,7 +67,7 @@ private:
 
     Stream* querySerial = nullptr;
 
-    void write(const LogLineEntry logLineEntry, Setting& setting);
+    void write(LogLineEntry logLineEntry, Setting& setting);
 };
 
 #else // ELOG_SYSLOG_ENABLE

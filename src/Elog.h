@@ -144,6 +144,12 @@ public:
         log(logId, ELOG_LEVEL_EMERGENCY, format, args...);
     }
 
+    template <class T, typename ...Args>
+    inline void always(uint16_t logId, T format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_ALWAYS, format, args...);
+    }
+
 private:
     Elog() { } // Private constructor. Part of singleton pattern
 

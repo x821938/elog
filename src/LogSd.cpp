@@ -132,7 +132,8 @@ void LogSD::outputFromBuffer(const LogLineEntry logLineEntry)
 {
     for (uint8_t i = 0; i < registeredSdCount; i++) {
         Setting* setting = &settings[i];
-        if (setting->logId == logLineEntry.logId && setting->logLevel != ELOG_LEVEL_NOLOG) {
+        if (setting->logId == logLineEntry.logId &&
+            (setting->logLevel != ELOG_LEVEL_NOLOG || logLineEntry.logLevel == ELOG_LEVEL_ALWAYS)) {
             if (logLineEntry.logLevel <= setting->logLevel) {
                 setting->lastMsgLogLevel = logLineEntry.logLevel;
                 write(logLineEntry, *setting);
@@ -174,7 +175,7 @@ void LogSD::handlePeek(const LogLineEntry logLineEntry, const uint8_t settingInd
     logLineEntry: The logline to write
     setting: The setting for the log file
 */
-void LogSD::write(const LogLineEntry logLineEntry, Setting& setting)
+void LogSD::write(LogLineEntry logLineEntry, Setting& setting)
 {
     static char logStamp[LENGTH_OF_LOG_STAMP];
     uint8_t logId = logLineEntry.logId;
@@ -227,8 +228,9 @@ bool LogSD::mustLog(const uint8_t logId, const uint8_t logLevel)
 {
     for (uint8_t i = 0; i < registeredSdCount; i++) {
         Setting* setting = &settings[i];
-        if (setting->logId == logId && setting->logLevel != ELOG_LEVEL_NOLOG) {
-            if (logLevel <= setting->logLevel && setting->logLevel != ELOG_LEVEL_NOLOG) {
+        if (setting->logId == logId) {
+            if (logLevel <= setting->logLevel &&
+                (setting->logLevel != ELOG_LEVEL_NOLOG || logLevel == ELOG_LEVEL_ALWAYS)) {
                 return true;
             }
         }

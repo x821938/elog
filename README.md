@@ -5,7 +5,7 @@ The ElogPlus library is a powerful library for logging and monitoring events in 
 **Key features of the ElogPlus library include:**
 
 - Output to one or more devices: spiffs, sd card, syslog or serial.
-- Each message can be given a log level (DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY).
+- Each message can be given a log level (VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, ALWAYS).
 - Super fast logging
   1.  Logging is fast because messages are queued in your app, and then handled later in background by the logging library
   1.  If a message is not outputted it takes around 0.5 μs
@@ -65,17 +65,21 @@ Output:
 
 The log levels in the ElogPlus library are as follows:
 
-- 7: DEBUG: Used for detailed debugging information. Typically used during development and not in production.
-- 6: INFO: Used to provide general information about the application's execution. Helpful for tracking the flow of the program.
-- 5: NOTICE: Used to highlight noteworthy events or conditions that may require attention.
-- 4: WARNING: Used to indicate potential issues or situations that could lead to errors or unexpected behavior.
-- 3: ERROR: Used to report errors that occurred during the execution of the application. These errors may impact the functionality of the program.
-- 2: CRITICAL: Used to indicate critical errors that require immediate attention. These errors may lead to the termination of the application.
-- 1: ALERT: Used to indicate critical errors that require immediate attention. These errors may lead to the termination of the application.
-- 0: EMERGENCY: Used to indicate critical errors that require immediate attention. These errors may lead to the termination of the application.
+- 0: ALWAYS: Always logged, regardless of settings. For tombstone-type information.
+- 1: EMERGENCY: Used to indicate critical errors that require immediate attention. These errors may lead to the termination of the application.
+- 2: ALERT: Used to indicate critical errors that require immediate attention. These errors may lead to the termination of the application.
+- 3: CRITICAL: Used to indicate critical errors that require immediate attention. These errors may lead to the termination of the application.
+- 4: ERROR: Used to report errors that occurred during the execution of the application. These errors may impact the functionality of the program.
+- 5: WARNING: Used to indicate potential issues or situations that could lead to errors or unexpected behavior.
+- 6: NOTICE: Used to highlight noteworthy events or conditions that may require attention.
+- 7: INFO: Used to provide general information about the application's execution. Helpful for tracking the flow of the program.
+- 8: DEBUG: Used for detailed debugging information. Typically used during development and not in production.
+- 9: TRACE: Used for more detailed debugging information. Typically used during development and not in production.
+- 10: VERBOSE: Used for even more detailed debugging information. Typically used during development and not in production.
 
 The lower the level, the more serious the log line is.
-When registring a log id you alway tell what loglevel you want. Everything at that level and lower will be logged. So if you register a device with loglevel ERROR, you will on get messages logged at level ERROR, CRITICAL, ALERT and EMERGENCY.
+When registering a log id you always tell what loglevel you want. Everything at that level and lower will be logged. So if you register a device with
+loglevel ERROR, you will only get messages logged at level ERROR, CRITICAL, ALERT, EMERGENCY and ALWAYS
 
 # Output devices
 

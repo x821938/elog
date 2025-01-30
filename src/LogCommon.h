@@ -34,18 +34,21 @@ enum LogFlags {
 };
 
 // Don't forget to update logLevelStrings in LogFormat.cpp
+// and syslogLevel in LogSyslog.cpp
 enum LogLevel {
-    ELOG_LEVEL_EMERGENCY = 0,
-    ELOG_LEVEL_ALERT = 1,
-    ELOG_LEVEL_CRITICAL = 2,
-    ELOG_LEVEL_ERROR = 3,
-    ELOG_LEVEL_WARNING = 4,
-    ELOG_LEVEL_NOTICE = 5,
-    ELOG_LEVEL_INFO = 6,
-    ELOG_LEVEL_DEBUG = 7,
-    ELOG_LEVEL_TRACE = 8,
-    ELOG_LEVEL_VERBOSE = 9,
-    ELOG_LEVEL_NOLOG = 10
+    ELOG_LEVEL_ALWAYS = 0,
+    ELOG_LEVEL_EMERGENCY = 1,
+    ELOG_LEVEL_ALERT = 2,
+    ELOG_LEVEL_CRITICAL = 3,
+    ELOG_LEVEL_ERROR = 4,
+    ELOG_LEVEL_WARNING = 5,
+    ELOG_LEVEL_NOTICE = 6,
+    ELOG_LEVEL_INFO = 7,
+    ELOG_LEVEL_DEBUG = 8,
+    ELOG_LEVEL_TRACE = 9,
+    ELOG_LEVEL_VERBOSE = 10,
+    ELOG_LEVEL_NOLOG = 11,
+    ELOG_NUM_LOG_LEVELS = ELOG_LEVEL_NOLOG
 };
 
 enum LogFacility {

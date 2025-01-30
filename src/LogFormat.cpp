@@ -69,7 +69,7 @@ void Formatting::getTimeRtcString(char* output, const uint32_t milliseconds)
     tv.tv_usec -= (millisSinceStamps % 1000) * 1000;
 
     struct tm* tmstruct = localtime(&tv.tv_sec);
-    sprintf(output, "%04d-%02d-%02d %02d:%02d:%02d %03d ", (tmstruct->tm_year) + 1900, (tmstruct->tm_mon) + 1, tmstruct->tm_mday, tmstruct->tm_hour, tmstruct->tm_min, tmstruct->tm_sec, tv.tv_usec / 1000);
+    sprintf(output, "%04d-%02d-%02d %02d:%02d:%02d.%03d ", (tmstruct->tm_year) + 1900, (tmstruct->tm_mon) + 1, tmstruct->tm_mday, tmstruct->tm_hour, tmstruct->tm_min, tmstruct->tm_sec, tv.tv_usec / 1000);
 }
 
 /* Get the time string in the format of ddd:HH:MM:SS.mmm
@@ -88,7 +88,7 @@ void Formatting::getTimeMillisString(char* output, uint32_t milliSeconds, const 
     if (shortTimeFormat) {
         sprintf(output, "%02u:%02u:%02u ", hours % 24, minutes % 60, seconds % 60);
     } else {
-        sprintf(output, "%03u:%02u:%02u:%02u:%03u ", days, hours % 24, minutes % 60, seconds % 60, milliSeconds % 1000);
+        sprintf(output, "%03u:%02u:%02u:%02u.%03u ", days, hours % 24, minutes % 60, seconds % 60, milliSeconds % 1000);
     }
 }
 

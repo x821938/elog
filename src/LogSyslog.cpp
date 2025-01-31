@@ -137,6 +137,11 @@ void LogSyslog::write(LogLineEntry logLineEntry, Setting& setting)
             // Date and time is not included in the syslog message. It is assumed that the syslog server will add it
             int len = snprintf((char*)buffer, 256, "<%d>%s %s: %s", priority, syslogHostname, setting.appName, logLineEntry.logMessage);
 
+            // Remove any non-printing characters at the end of the line
+            while (len >= 1 && !isprint(buffer[len - 1])) {
+                len--;
+            }
+
             if (syslogUdp.beginPacket(syslogServer, syslogPort) == 1) {
                 sentBytes = syslogUdp.write(buffer, len);
                 success = syslogUdp.endPacket();

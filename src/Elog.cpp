@@ -359,14 +359,16 @@ uint8_t Elog::getSdLastMsgLogLevel(const uint8_t logId, const char* fileName)
  * @param server the IP address of the syslog server
  * @param port the port of the syslog server. Default is 514
  * @param hostname the hostname of the device. Default is "esp32"
+ * @param waitIfNotReady whether to wait or discard the log if WiFi is not ready or sending fails
+ * @param maxWaitMilliseconds cumulative amount of time to wait for a successful send
  * @param maxRegistrations the maximum number of registrations. Default is 10
  */
-void Elog::configureSyslog(const char* server, uint16_t port, const char* hostname, const uint8_t maxRegistrations)
+void Elog::configureSyslog(const char* server, uint16_t port, const char* hostname, bool waitIfNotReady, const uint16_t maxWaitMilliseconds, const uint8_t maxRegistrations)
 {
     if (!logStarted) {
         configure();
     }
-    logSyslog.configure(server, port, hostname, maxRegistrations);
+    logSyslog.configure(server, port, hostname, waitIfNotReady, maxWaitMilliseconds, maxRegistrations);
 }
 
 /** Register a Syslog server for logging

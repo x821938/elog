@@ -74,7 +74,8 @@ public:
     uint8_t getSdLastMsgLogLevel(const uint8_t logId, const char* fileName);
 #endif // ELOG_SD_ENABLE
 #ifdef ELOG_SYSLOG_ENABLE
-    void configureSyslog(const char* server, uint16_t port = 514, const char* hostname = "esp32", const uint8_t maxRegistrations = 10);
+    void configureSyslog(const char* server, uint16_t port = 514, const char* hostname = "esp32", bool waitIfNotReady = false, const uint16_t maxWaitMilliseconds = 5000,
+                         const uint8_t maxRegistrations = 10);
     void registerSyslog(const uint8_t logId, const uint8_t logLevel, const uint8_t facility, const char* appName);
     uint8_t getSyslogLogLevel(const uint8_t logId, const uint8_t facility);
     void setSyslogLogLevel(const uint8_t logId, const uint8_t logLevel, const uint8_t facility);

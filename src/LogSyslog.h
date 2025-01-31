@@ -25,7 +25,7 @@ class LogSyslog {
 
 public:
     void begin();
-    void configure(const char* serverName, const uint16_t port, const char* hostname, const uint8_t maxRegistrations);
+    void configure(const char* serverName, const uint16_t port, const char* hostname, bool waitIfNotReady, const uint16_t maxWaitMilliseconds, const uint8_t maxRegistrations);
     void registerSyslog(const uint8_t logId, const uint8_t loglevel, const uint8_t facility, const char* appName);
     uint8_t getLogLevel(const uint8_t logId, const uint8_t facility);
     void setLogLevel(const uint8_t logId, const uint8_t loglevel, const uint8_t facility);
@@ -64,6 +64,8 @@ private:
     const char* syslogServer;
     uint16_t syslogPort;
     const char* syslogHostname;
+    bool waitIfNotReady;
+    uint16_t maxWaitMilliseconds;
 
     Stream* querySerial = nullptr;
 
@@ -74,7 +76,7 @@ private:
 class LogSyslog {
 public:
     void begin() { }
-    void configure(const char* serverName, const uint16_t port, const char* hostname) { }
+    void configure(const char* serverName, const uint16_t port, const char* hostname, bool waitIfNotReady, const uint16_t maxWaitMilliseconds, const uint8_t maxRegistrations) { }
     void registerSyslog(const uint8_t logId, const uint8_t loglevel, const uint8_t facility, const char* appName) { }
     void outputFromBuffer(const LogLineEntry logLineEntry) { }
     void handlePeek(const LogLineEntry logLineEntry, const uint8_t settingIndex) { }

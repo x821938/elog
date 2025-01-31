@@ -16,7 +16,7 @@ void LogSyslog::begin()
  * hostname: the hostname of the device
  * maxRegistrations: the maximum number of registrations
  */
-void LogSyslog::configure(const char* serverName, const uint16_t port, const char* hostname, const uint8_t maxRegistrations)
+void LogSyslog::configure(const char* serverName, const uint16_t port, const char* hostname, bool waitIfNotReady, const uint16_t maxWaitMilliseconds, const uint8_t maxRegistrations)
 {
     if (syslogConfigured) {
         Logger.logInternal(ELOG_LEVEL_ERROR, "Syslog already configured with %s:%d, hostname %s", syslogServer, syslogPort, syslogHostname);
@@ -29,6 +29,8 @@ void LogSyslog::configure(const char* serverName, const uint16_t port, const cha
     this->syslogServer = serverName;
     this->syslogPort = port;
     this->syslogHostname = hostname;
+    this->waitIfNotReady = waitIfNotReady;
+    this->maxWaitMilliseconds = maxWaitMilliseconds;
     syslogConfigured = true;
 
     Logger.logInternal(ELOG_LEVEL_INFO, "Configured syslog server %s:%d, hostname %s, max registrations %d", serverName, port, hostname, maxRegistrations);
@@ -125,30 +127,42 @@ void LogSyslog::write(LogLineEntry logLineEntry, Setting& setting)
 {
     static int const syslogLevel[ELOG_NUM_LOG_LEVELS] = { 6, 0, 1, 2, 3, 4, 5, 6, 7, 7, 7 };
 
-    if (!WiFi.isConnected()) {
-        stats.messagesDiscardedTotal++;
-        Logger.logInternal(ELOG_LEVEL_WARNING, "WiFi not connected. Cannot send syslog message");
-        return;
-    }
+    while (true) {
+        uint32_t sentBytes = 0;
+        int success = 0;
+        if (WiFi.isConnected()) {
+            uint8_t priority = syslogLevel[logLineEntry.logLevel] | (setting.facility << 3);
 
-    uint8_t priority = syslogLevel[logLineEntry.logLevel] | (setting.facility << 3);
+            uint8_t buffer[256];
+            // Date and time is not included in the syslog message. It is assumed that the syslog server will add it
+            int len = snprintf((char*)buffer, 256, "<%d>%s %s: %s", priority, syslogHostname, setting.appName, logLineEntry.logMessage);
 
-    uint8_t buffer[256];
-    // Date and time is not included in the syslog message. It is assumed that the syslog server will add it
-    int len = snprintf((char*)buffer, 256, "<%d>%s %s: %s", priority, syslogHostname, setting.appName, logLineEntry.logMessage);
+            if (syslogUdp.beginPacket(syslogServer, syslogPort) == 1) {
+                sentBytes = syslogUdp.write(buffer, len);
+                success = syslogUdp.endPacket();
+            }
 
-    uint32_t sentBytes = 0;
-    int success = 0;
-    if (syslogUdp.beginPacket(syslogServer, syslogPort) == 1) {
-        sentBytes = syslogUdp.write(buffer, len);
-        success = syslogUdp.endPacket();
-    }
+            if (success && sentBytes == len) {
+                stats.bytesWrittenTotal += len;
+                stats.messagesWrittenTotal++;
+                return;
+            }
+        }
 
-    if (success && sentBytes == len) {
-        stats.bytesWrittenTotal += len;
-        stats.messagesWrittenTotal++;
-    } else {
-        Logger.logInternal(ELOG_LEVEL_WARNING, "Failed to send syslog message");
+        // WiFi is not ready, or sending the log failed
+
+        if (!waitIfNotReady || maxWaitMilliseconds == 0) {
+            stats.messagesDiscardedTotal++;
+            Logger.logInternal(ELOG_LEVEL_WARNING, "WiFi not connected or could not send syslog message");
+            return;
+        }
+
+        // Wait 250 ms at a time
+        unsigned long delayTime = (maxWaitMilliseconds > 250) ? 250 : maxWaitMilliseconds;
+        delay(delayTime);
+        // It is intentional that after a cumulative delay equal to the configured
+        // maxWaitMilliseconds, we stop waiting.
+        maxWaitMilliseconds -= delayTime;
     }
 }
 

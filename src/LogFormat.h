@@ -1,9 +1,9 @@
-#ifndef FORMATTING_H
-#define FORMATTING_H
+#ifndef ELOG_FORMATTING_H
+#define ELOG_FORMATTING_H
 
 #include <Arduino.h>
 #include <TimeLib.h>
-#include <common.h>
+#include <LogCommon.h>
 
 #define LENGTH_OF_TIME 25
 #define LENGTH_OF_SERVICE 10
@@ -31,4 +31,4 @@ public:
     static void getRTCtime(char* output, size_t outputSize);
 };
 
-#endif // FORMATTING_H
+#endif // ELOG_FORMATTING_H

@@ -1,4 +1,4 @@
-#ifndef LOGGING_SPIFFS_DISABLE
+#ifdef ELOG_SPIFFS_ENABLE
 
 #include <Elog.h>
 #include <LogSpiffs.h>
@@ -18,21 +18,21 @@ void LogSpiffs::begin()
 void LogSpiffs::configure(const uint8_t maxRegistrations)
 {
     if (this->maxRegistrations > 0) {
-        logger.logInternal(ERROR, "SPIFFS logging already configured with %d registrations", this->maxRegistrations);
+        Logger.logInternal(ELOG_LEVEL_ERROR, "SPIFFS logging already configured with %d registrations", this->maxRegistrations);
         return;
     }
 
     settings = new Setting[maxRegistrations];
     fileSettingsCount = 0;
     this->maxRegistrations = maxRegistrations;
-    logger.logInternal(INFO, "Configured SPIFFS logging with max %d registrations", maxRegistrations);
+    Logger.logInternal(ELOG_LEVEL_INFO, "Configured SPIFFS logging with max %d registrations", maxRegistrations);
 }
 
 /* Register a SPIFFS log file
  * logId: The id of the log
  * loglevel: The log level that should be logged
  * fileName: The name of the file (max 8 characters)
- * logFlags: The log flags (FLAG_NONE, FLAG_NO_SERVICE, FLAG_NO_TIMESTAMP, FLAG_NO_LEVEL, FLAG_NO_TIME, FLAG_TIME_SIMPLE, FLAG_TIME_LONG, FLAG_TIME_SHORT, FLAG_SERVICE_LONG)
+ * logFlags: The log flags (ELOG_FLAG_NONE, ELOG_FLAG_NO_SERVICE, ELOG_FLAG_NO_TIMESTAMP, ELOG_FLAG_NO_LEVEL, ELOG_FLAG_NO_TIME, ELOG_FLAG_TIME_SIMPLE, ELOG_FLAG_TIME_LONG, ELOG_FLAG_TIME_SHORT, ELOG_FLAG_SERVICE_LONG)
  * maxLogFileSize: The maximum size of the log file before it is rotated
  */
 void LogSpiffs::registerSpiffs(const uint8_t logId, const uint8_t loglevel, const char* fileName, const uint8_t logFlags, const uint32_t maxLogFileSize)
@@ -42,16 +42,16 @@ void LogSpiffs::registerSpiffs(const uint8_t logId, const uint8_t loglevel, cons
     }
 
     if (!isValidFileName(fileName)) {
-        logger.logInternal(ERROR, "Invalid filename %s", fileName);
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Invalid filename %s", fileName);
         return;
     }
     if (isFileNameRegistered(fileName)) {
-        logger.logInternal(ERROR, "Filename %s already registered with logId %d", fileName, logId);
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Filename %s already registered with logId %d", fileName, logId);
         return;
     }
 
     if (fileSettingsCount >= maxRegistrations) {
-        logger.logInternal(ERROR, "Maximum number of registered SPIFFS logfiles reached: %d", maxRegistrations);
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Maximum number of registered SPIFFS logfiles reached: %d", maxRegistrations);
         return;
     }
 
@@ -60,19 +60,50 @@ void LogSpiffs::registerSpiffs(const uint8_t logId, const uint8_t loglevel, cons
     setting->logId = logId;
     setting->fileName = fileName;
     setting->logLevel = loglevel;
+    setting->lastMsgLogLevel = ELOG_LEVEL_NOLOG;
     setting->fileNumber = 0;
     setting->bytesWritten = 0;
     setting->maxLogFileSize = maxLogFileSize;
 
-    if (logFlags == FLAG_NONE) {
-        setting->logFlags = FLAG_NO_SERVICE; // Servicename makes no sense in a file
-    } else {
-        setting->logFlags = logFlags;
-    }
+    setting->logFlags |= ELOG_FLAG_NO_SERVICE; // Servicename makes no sense in a file
 
     char logLevelStr[10];
     formatter.getLogLevelStringRaw(logLevelStr, loglevel);
-    logger.logInternal(INFO, "Registered SPIFFS log id %d, level %s, filename %s", logId, logLevelStr, fileName);
+    Logger.logInternal(ELOG_LEVEL_INFO, "Registered SPIFFS log id %d, level %s, filename %s", logId, logLevelStr, fileName);
+}
+
+uint8_t LogSpiffs::getLogLevel(const uint8_t logId, const char* fileName)
+{
+    for (uint8_t i = 0; i < fileSettingsCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && strcmp(settings->fileName, fileName) == 0) {
+            return setting->logLevel;
+        }
+    }
+
+    return ELOG_LEVEL_NOLOG;
+}
+
+void LogSpiffs::setLogLevel(const uint8_t logId, const uint8_t loglevel, const char* fileName)
+{
+    for (uint8_t i = 0; i < fileSettingsCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && strcmp(settings->fileName, fileName) == 0) {
+            setting->logLevel = loglevel;
+        }
+    }
+}
+
+uint8_t LogSpiffs::getLastMsgLogLevel(const uint8_t logId, const char* fileName)
+{
+    for (uint8_t i = 0; i < fileSettingsCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && strcmp(settings->fileName, fileName) == 0) {
+            return setting->lastMsgLogLevel;
+        }
+    }
+
+    return ELOG_LEVEL_NOLOG;
 }
 
 /* Output the logline to the SPIFFS log files. Traverse all registered log files and output to the ones that match the logId and logLevel
@@ -82,8 +113,10 @@ void LogSpiffs::outputFromBuffer(const LogLineEntry logLineEntry)
 {
     for (uint8_t i = 0; i < fileSettingsCount; i++) {
         Setting* setting = &settings[i];
-        if (setting->logId == logLineEntry.logId && setting->logLevel != NOLOG) {
+        if (setting->logId == logLineEntry.logId &&
+            (setting->logLevel != ELOG_LEVEL_NOLOG || logLineEntry.logLevel == ELOG_LEVEL_ALWAYS)) {
             if (logLineEntry.logLevel <= setting->logLevel) {
+                setting->lastMsgLogLevel = logLineEntry.logLevel;
                 if (ensureFilesystemConfigured()) {
                     write(logLineEntry, *setting);
                     allFilesSync();
@@ -124,7 +157,7 @@ void LogSpiffs::handlePeek(const LogLineEntry logLineEntry, const uint8_t settin
  * logLineEntry: The logline to write
  * setting: The setting for the file
  */
-void LogSpiffs::write(const LogLineEntry logLineEntry, Setting& setting)
+void LogSpiffs::write(LogLineEntry logLineEntry, Setting& setting)
 {
     static char logStamp[LENGTH_OF_LOG_STAMP];
 
@@ -143,7 +176,7 @@ void LogSpiffs::write(const LogLineEntry logLineEntry, Setting& setting)
             setting.bytesWritten += bytesWritten;
         } else {
             stats.messagesDiscardedTotal++;
-            logger.logInternal(ERROR, "Failed to write to SPIFFS:%s/%s. Expected writing %d bytes, wrote %d bytes", currentLogDir, setting.fileName, expectedBytes, bytesWritten);
+            Logger.logInternal(ELOG_LEVEL_ERROR, "Failed to write to SPIFFS:%s/%s. Expected writing %d bytes, wrote %d bytes", currentLogDir, setting.fileName, expectedBytes, bytesWritten);
         }
         ensureFreeSpace();
         ensureFileSize(setting);
@@ -159,8 +192,9 @@ bool LogSpiffs::mustLog(const uint8_t logId, const uint8_t logLevel)
 {
     for (uint8_t i = 0; i < fileSettingsCount; i++) {
         Setting* setting = &settings[i];
-        if (setting->logId == logId && setting->logLevel != NOLOG) {
-            if (logLevel <= setting->logLevel) {
+        if (setting->logId == logId) {
+            if (logLevel <= setting->logLevel &&
+                (setting->logLevel != ELOG_LEVEL_NOLOG || logLevel == ELOG_LEVEL_ALWAYS)) {
                 return true;
             }
         }
@@ -173,7 +207,7 @@ bool LogSpiffs::mustLog(const uint8_t logId, const uint8_t logLevel)
 void LogSpiffs::outputStats()
 {
     if (fileSystemConfigured) {
-        logger.logInternal(INFO, "SPIFFS stats. Messages written: %d, Bytes written: %d", stats.messagesWrittenTotal, stats.bytesWrittenTotal);
+        Logger.logInternal(ELOG_LEVEL_INFO, "SPIFFS stats. Messages written: %d, Bytes written: %d", stats.messagesWrittenTotal, stats.bytesWrittenTotal);
     }
 }
 
@@ -191,6 +225,13 @@ void LogSpiffs::enableQuery(Stream& querySerial)
 void LogSpiffs::peekStop()
 {
     peekEnabled = false;
+}
+
+/* Return the number of registrations
+ */
+uint8_t LogSpiffs::registeredCount()
+{
+    return fileSettingsCount;
 }
 
 /* Print the help specific for the SPIFFS file system
@@ -390,7 +431,7 @@ void LogSpiffs::queryCmdType(const char* filename)
 bool LogSpiffs::queryCmdPeek(const char* filename, const char* loglevel, const char* textFilter)
 {
     peekLoglevel = formatter.getLogLevelFromString(loglevel);
-    if (peekLoglevel == NOLOG) {
+    if (peekLoglevel == ELOG_LEVEL_NOLOG) {
         querySerial->printf("Invalid loglevel %s. Allowed values are: debug, info, notic, warn, error, crit, alert, emerg\n", loglevel);
         return false;
     }
@@ -529,7 +570,7 @@ bool LogSpiffs::isFileNameRegistered(const char* fileName)
 void LogSpiffs::createNextLogDir()
 {
     if (LittleFS.mkdir(SPIFFS_LOG_ROOT)) {
-        logger.logInternal(NOTICE, "Created directory SPIFFS:%s", SPIFFS_LOG_ROOT);
+        Logger.logInternal(ELOG_LEVEL_NOTICE, "Created directory SPIFFS:%s", SPIFFS_LOG_ROOT);
     }
 
     uint16_t logNumber = 0;
@@ -539,10 +580,10 @@ void LogSpiffs::createNextLogDir()
     if (logNumberFile) {
         String logNumberStr = logNumberFile.readStringUntil('\n');
         logNumber = logNumberStr.toInt();
-        logger.logInternal(DEBUG, "Read file SPIFFS:%s and got log number %d", SPIFFS_LOGNUMBER_FILE, logNumber);
+        Logger.logInternal(ELOG_LEVEL_DEBUG, "Read file SPIFFS:%s and got log number %d", SPIFFS_LOGNUMBER_FILE, logNumber);
         logNumberFile.close();
     } else {
-        logger.logInternal(WARNING, "No SPIFFS:%s file\n", SPIFFS_LOGNUMBER_FILE);
+        Logger.logInternal(ELOG_LEVEL_WARNING, "No SPIFFS:%s file\n", SPIFFS_LOGNUMBER_FILE);
     }
 
     bool dirCreated = false;
@@ -552,16 +593,16 @@ void LogSpiffs::createNextLogDir()
         dirCreated = LittleFS.mkdir(currentLogDir);
     } while (!dirCreated);
 
-    logger.logInternal(NOTICE, "Created directory SPIFFS:%s", currentLogDir);
+    Logger.logInternal(ELOG_LEVEL_NOTICE, "Created directory SPIFFS:%s", currentLogDir);
 
     // Store logNumber in lognumber.txt
     logNumberFile = LittleFS.open(SPIFFS_LOGNUMBER_FILE, "w");
-    logger.logInternal(DEBUG, "Writing SPIFFS:%s file with lognumber %d", SPIFFS_LOGNUMBER_FILE, logNumber);
+    Logger.logInternal(ELOG_LEVEL_DEBUG, "Writing SPIFFS:%s file with lognumber %d", SPIFFS_LOGNUMBER_FILE, logNumber);
     if (logNumberFile) {
         logNumberFile.print(logNumber);
         logNumberFile.close();
     } else {
-        logger.logInternal(ALERT, "Error writing to SPIFFS:%s. No SPIFFS file logging!", SPIFFS_LOGNUMBER_FILE);
+        Logger.logInternal(ELOG_LEVEL_ALERT, "Error writing to SPIFFS:%s. No SPIFFS file logging!", SPIFFS_LOGNUMBER_FILE);
     }
 }
 
@@ -587,11 +628,11 @@ uint32_t LogSpiffs::removeOldestFile()
     File root = LittleFS.open(SPIFFS_LOG_ROOT);
     File dir = root.openNextFile();
     if (!dir) {
-        logger.logInternal(ERROR, "No files to remove in SPIFFS");
+        Logger.logInternal(ELOG_LEVEL_ERROR, "No files to remove in SPIFFS");
         return 0;
     }
     if (!dir.isDirectory()) {
-        logger.logInternal(ERROR, "No directories to remove in SPIFFS");
+        Logger.logInternal(ELOG_LEVEL_ERROR, "No directories to remove in SPIFFS");
         return 0;
     }
     sprintf(dirName, "%s/%s", SPIFFS_LOG_ROOT, dir.name());
@@ -623,9 +664,9 @@ uint32_t LogSpiffs::removeOldestFile()
         char fullFileName[LENGTH_ABSOLUTE_PATH];
         sprintf(fullFileName, "%s/%s", dirName, oldestFileName);
         if (LittleFS.remove(fullFileName)) {
-            logger.logInternal(NOTICE, "Removed oldest file: SPIFFS:%s", fullFileName);
+            Logger.logInternal(ELOG_LEVEL_NOTICE, "Removed oldest file: SPIFFS:%s", fullFileName);
         } else {
-            logger.logInternal(ERROR, "Failed to remove oldest file: SPIFFS:%s", fullFileName);
+            Logger.logInternal(ELOG_LEVEL_ERROR, "Failed to remove oldest file: SPIFFS:%s", fullFileName);
             return 0;
         }
     }
@@ -634,9 +675,9 @@ uint32_t LogSpiffs::removeOldestFile()
     dir = LittleFS.open(dirName);
     if (!dir.openNextFile()) {
         if (LittleFS.rmdir(dirName)) {
-            logger.logInternal(NOTICE, "Removed empty directory: %s", dirName);
+            Logger.logInternal(ELOG_LEVEL_NOTICE, "Removed empty directory: %s", dirName);
         } else {
-            logger.logInternal(ERROR, "Failed to remove empty directory: %s", dirName);
+            Logger.logInternal(ELOG_LEVEL_ERROR, "Failed to remove empty directory: %s", dirName);
         }
     }
     dir.close();
@@ -660,11 +701,11 @@ bool LogSpiffs::ensureFilesystemConfigured()
     }
 
     if (!LittleFS.begin(true)) {
-        logger.logInternal(ERROR, "Failed to mount SPIFFS. No SPIFFS file logging!");
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Failed to mount SPIFFS. No SPIFFS file logging!");
         failedOnce = true;
         return false;
     } else {
-        logger.logInternal(INFO, "SPIFFS mounted");
+        Logger.logInternal(ELOG_LEVEL_INFO, "SPIFFS mounted");
         createNextLogDir();
         fileSystemConfigured = true;
     }
@@ -684,10 +725,10 @@ bool LogSpiffs::ensureOpenFile(Setting& setting)
 
         setting.spiffsFileHandle = LittleFS.open(fullFileName, FILE_WRITE);
         if (!setting.spiffsFileHandle) {
-            logger.logInternal(WARNING, "Could not create logfile SPIFFS:%s", fullFileName);
+            Logger.logInternal(ELOG_LEVEL_WARNING, "Could not create logfile SPIFFS:%s", fullFileName);
             return false;
         } else {
-            logger.logInternal(INFO, "Created logfile SPIFFS:%s", fullFileName);
+            Logger.logInternal(ELOG_LEVEL_INFO, "Created logfile SPIFFS:%s", fullFileName);
             return true;
         }
         return false; // things has not changed. still no file handle
@@ -707,9 +748,9 @@ void LogSpiffs::ensureFreeSpace()
         uint32_t freeSpace = LittleFS.totalBytes() - LittleFS.usedBytes();
         checkAfterBytes = freeSpace / 2; // check more often when free space is low
         bytesWrittenAtLastCheck = stats.bytesWrittenTotal;
-        logger.logInternal(DEBUG, "SPIFFS: Free space: %d bytes, check after: %d bytes", freeSpace, checkAfterBytes);
+        Logger.logInternal(ELOG_LEVEL_DEBUG, "SPIFFS: Free space: %d bytes, check after: %d bytes", freeSpace, checkAfterBytes);
         if (freeSpace < SPIFFS_MIN_FREE_SPACE) {
-            logger.logInternal(DEBUG, "SPIFFS: Free space is lower than %d bytes. Removing oldest files", SPIFFS_MIN_FREE_SPACE);
+            Logger.logInternal(ELOG_LEVEL_DEBUG, "SPIFFS: Free space is lower than %d bytes. Removing oldest files", SPIFFS_MIN_FREE_SPACE);
             uint32_t removedBytes = 0;
             do {
                 removedBytes += removeOldestFile();
@@ -738,12 +779,12 @@ void LogSpiffs::allFilesSync()
     static uint32_t lastSynced = 0;
 
     if (millis() - lastSynced > SPIFFS_SYNC_FILES_EVERY) {
-        logger.logInternal(INFO, "Syncronizing all SPIFFS logfiles. Writing dirty cache");
+        Logger.logInternal(ELOG_LEVEL_INFO, "Syncronizing all SPIFFS logfiles. Writing dirty cache");
 
         for (uint8_t i = 0; i < fileSettingsCount; i++) {
             Setting* setting = &settings[i];
             if (setting->spiffsFileHandle) {
-                logger.logInternal(DEBUG, "Syncronizing SPIFFS:%s/%s.%03d", currentLogDir, setting->fileName, setting->fileNumber);
+                Logger.logInternal(ELOG_LEVEL_DEBUG, "Syncronizing SPIFFS:%s/%s.%03d", currentLogDir, setting->fileName, setting->fileNumber);
                 setting->spiffsFileHandle.flush();
             }
         }
@@ -780,4 +821,4 @@ void LogSpiffs::allFilesOpen()
     }
 }
 
-#endif // LOGGING_SPIFFS_DISABLE
+#endif // ELOG_SPIFFS_ENABLE

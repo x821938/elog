@@ -5,7 +5,7 @@ The ElogPlus library is a powerful library for logging and monitoring events in 
 **Key features of the ElogPlus library include:**
 
 - Output to one or more devices: spiffs, sd card, syslog or serial.
-- Each message can be given a log level (DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY).
+- Each message can be given a log level (VERBOSE, TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY, ALWAYS).
 - Super fast logging
   1.  Logging is fast because messages are queued in your app, and then handled later in background by the logging library
   1.  If a message is not outputted it takes around 0.5 μs
@@ -31,7 +31,7 @@ The you register your log Id in order to start logging to it. This will often be
 void setup()
 {
     Serial.begin(115200);
-    logger.registerSerial(MYLOG, DEBUG, "tst"); // We want messages with DEBUG level and lower
+    Logger.registerSerial(MYLOG, LOG_LEVEL_DEBUG, "tst"); // We want messages with DEBUG level and lower
 }
 ```
 
@@ -41,9 +41,9 @@ Then inside your code you can send messages to the serial port.
 void loop()
 {
     for (int i = 0; i < 1000; i++) {
-        logger.log(MYLOG, DEBUG, "Counter is %d", i);
+        Logger.log(MYLOG, LOG_LEVEL_DEBUG, "Counter is %d", i);
         if (i % 10 == 0) {
-            logger.log(MYLOG, NOTICE, "Counter divisible by 10");
+            Logger.log(MYLOG, LOG_LEVEL_NOTICE, "Counter divisible by 10");
         }
         delay(500);
     }
@@ -65,17 +65,21 @@ Output:
 
 The log levels in the ElogPlus library are as follows:
 
-- 7: DEBUG: Used for detailed debugging information. Typically used during development and not in production.
-- 6: INFO: Used to provide general information about the application's execution. Helpful for tracking the flow of the program.
-- 5: NOTICE: Used to highlight noteworthy events or conditions that may require attention.
-- 4: WARNING: Used to indicate potential issues or situations that could lead to errors or unexpected behavior.
-- 3: ERROR: Used to report errors that occurred during the execution of the application. These errors may impact the functionality of the program.
-- 2: CRITICAL: Used to indicate critical errors that require immediate attention. These errors may lead to the termination of the application.
-- 1: ALERT: Used to indicate critical errors that require immediate attention. These errors may lead to the termination of the application.
-- 0: EMERGENCY: Used to indicate critical errors that require immediate attention. These errors may lead to the termination of the application.
+- 0: ALWAYS: Always logged, regardless of settings. For tombstone-type information.
+- 1: EMERGENCY: Used to indicate critical errors that require immediate attention. These errors may lead to the termination of the application.
+- 2: ALERT: Used to indicate critical errors that require immediate attention. These errors may lead to the termination of the application.
+- 3: CRITICAL: Used to indicate critical errors that require immediate attention. These errors may lead to the termination of the application.
+- 4: ERROR: Used to report errors that occurred during the execution of the application. These errors may impact the functionality of the program.
+- 5: WARNING: Used to indicate potential issues or situations that could lead to errors or unexpected behavior.
+- 6: NOTICE: Used to highlight noteworthy events or conditions that may require attention.
+- 7: INFO: Used to provide general information about the application's execution. Helpful for tracking the flow of the program.
+- 8: DEBUG: Used for detailed debugging information. Typically used during development and not in production.
+- 9: TRACE: Used for more detailed debugging information. Typically used during development and not in production.
+- 10: VERBOSE: Used for even more detailed debugging information. Typically used during development and not in production.
 
 The lower the level, the more serious the log line is.
-When registring a log id you alway tell what loglevel you want. Everything at that level and lower will be logged. So if you register a device with loglevel ERROR, you will on get messages logged at level ERROR, CRITICAL, ALERT and EMERGENCY.
+When registering a log id you always tell what loglevel you want. Everything at that level and lower will be logged. So if you register a device with
+loglevel ERROR, you will only get messages logged at level ERROR, CRITICAL, ALERT, EMERGENCY and ALWAYS
 
 # Output devices
 
@@ -85,8 +89,8 @@ This is the most simple form of using the logger. You register a handle and send
 
 ```
 #define MYLOG 0
-logger.registerSerial(MYLOG, DEBUG, "tst");
-logger.log(MYLOG, INFO, "Here is a message");
+Logger.registerSerial(MYLOG, LOG_LEVEL_DEBUG, "tst");
+Logger.log(MYLOG, LOG_LEVEL_INFO, "Here is a message");
 ```
 
 The service name is "tst". It will always be upper cased and truncated to 3 chars when outputted.
@@ -107,16 +111,16 @@ Logging to a SD-card can be done by configuring SPI for the cardreader and regis
 #include <SPI.h>
 SPIClass spi = SPIClass(SPI);
 spi.begin(18, 19, 23, 5); // Set your pins of your card reader here. SCK=19, MISO=19, MOSI=23, SS=5
-logger.configureSd(spi, 5, 2000000); // SS pin 5, bus speed = 2Mhz
-logger.registerSd(INFO, DEBUG, "mylog");
+Logger.configureSd(spi, 5, 2000000); // SS pin 5, bus speed = 2Mhz
+Logger.registerSd(INFO, LOG_LEVEL_DEBUG, "mylog");
 
-logger.log(MYLOG, INFO, "Here is a message");
+Logger.log(MYLOG, LOG_LEVEL_INFO, "Here is a message");
 ```
 
 Every time the ESP is booted a new directory on the SD-card is created. The folder name is in format 0001 and is increased on every boot. In this example the first logfile is called mylog.001. When the file reaches the size of 100Kb a new file named mylog.002 will be created. If you want another max size of the logfile use:
 
 ```
-logger.registerSd(MYLOG, INFO, "mylog", FLAG_NONE, 20000);
+Logger.registerSd(MYLOG, LOG_LEVEL_INFO, "mylog", FLAG_NONE, 20000);
 ```
 
 When registing the SD card file you decide the loglevel that should go to the file system. In this case it is loglevel equal or lower than INFO
@@ -131,14 +135,14 @@ Logging to the internal EEPROM of the ESP32 is as simple as register a loghandle
 
 ```
 #define MYLOG 0
-logger.registerSpiffs(MYLOG, DEBUG, "mylog");
-logger.log(MYLOG, INFO, "Here is a message");
+Logger.registerSpiffs(MYLOG, LOG_LEVEL_DEBUG, "mylog");
+Logger.log(MYLOG, LOG_LEVEL_INFO, "Here is a message");
 ```
 
 Every time the ESP is booted a new directory is created. The folder name is in format 0001 and is increased on every boot. In this example the first logfile is called mylog.001. When the file reaches the size of 100Kb a new file named mylog.002 will be created. If you want another max size of the logfile use:
 
 ```
-logger.registerSpiffs(MYLOG, DEBUG, "mylog", FLAG_NONE, 20000);
+Logger.registerSpiffs(MYLOG, LOG_LEVEL_DEBUG, "mylog", FLAG_NONE, 20000);
 ```
 
 When registing the SPIFFS you decide the loglevel that should go to the file system. In this case it is loglevel equal or lower than DEBUG
@@ -151,9 +155,9 @@ Logging to the an external syslog server is as simple as configuring the syslog 
 
 ```
 #define MYLOG 0
-logger.configureSyslog("192.168.1.20", 514, "esp32"); // syslog host, port and name of the esp32 device host name
-logger.registerSyslog(MYLOG, NOTICE, FAC_LOCAL4, "mylog"); // Log facility and app name that is sent to syslog server
-logger.log(MYLOG, ERROR, "Here is an error message, error code: %d", 17);
+Logger.configureSyslog("192.168.1.20", 514, "esp32"); // syslog host, port and name of the esp32 device host name
+Logger.registerSyslog(MYLOG, LOG_LEVEL_NOTICE, FAC_LOCAL4, "mylog"); // Log facility and app name that is sent to syslog server
+Logger.log(MYLOG, ELOG_LEVEL_ERROR, "Here is an error message, error code: %d", 17);
 ```
 
 When registring the SYSLOG handle you decide the loglevel that should go to the syslog server. In this case it is loglevel equal to or lower than NOTICE
@@ -168,12 +172,12 @@ You can send messages to several output at the same time and filter them differe
 #define MYLOG 0
 #define OTHERLOG 1
 
-logger.registerSpiffs(MYLOG, ERROR, "mylog");
-logger.registerSerial(MYLOG, DEBUG, "tst");
-logger.registerSerial(OTHERLOG, DEBUG, "xxx");
+Logger.registerSpiffs(MYLOG, ELOG_LEVEL_ERROR, "mylog");
+Logger.registerSerial(MYLOG, LOG_LEVEL_DEBUG, "tst");
+Logger.registerSerial(OTHERLOG, LOG_LEVEL_DEBUG, "xxx");
 
-logger.log(MYLOG, INFO, "Here is a message that goes to serial with service name [TST], but not spiffs");
-logger.log(OTHERLOG, INFO, "Here is a message that goes to serial with service name [XXX]");
+Logger.log(MYLOG, LOG_LEVEL_INFO, "Here is a message that goes to serial with service name [TST], but not spiffs");
+Logger.log(OTHERLOG, LOG_LEVEL_INFO, "Here is a message that goes to serial with service name [XXX]");
 ```
 
 ## Formatting logfiles
@@ -192,9 +196,9 @@ All registrations can configure how the text in the logfile should appear. You c
 Options can be applied to all device registrations except syslog. Examples:
 
 ```
-logger.registerSerial(MYLOG, DEBUG, "mylog", Serial2, FLAG_NO_TIME | FLAG_NO_SERVICE);
-logger.registerSpiffs(MYLOG, ERROR, "mylog", FLAG_TIME_SIMPLE);
-logger.registerSd(INFO, DEBUG, "mylog", FLAG_NONE);
+Logger.registerSerial(MYLOG, LOG_LEVEL_DEBUG, "mylog", Serial2, FLAG_NO_TIME | FLAG_NO_SERVICE);
+Logger.registerSpiffs(MYLOG, ELOG_LEVEL_ERROR, "mylog", FLAG_TIME_SIMPLE);
+Logger.registerSd(INFO, LOG_LEVEL_DEBUG, "mylog", FLAG_NONE);
 ```
 
 ## Using real time clock (RTC)
@@ -206,7 +210,7 @@ Files on SPIFFS and SD card will also be timestamped. Also output of Serial will
 You can also set the RTC time on the ESP with this function if you get time from somewhere else than NTP (GPS etc...)
 
 ```
-logger.provideTime(2024, 6, 15, 10, 12, 51); // (June 15 2024 time 10:12:51)
+Logger.provideTime(2024, 6, 15, 10, 12, 51); // (June 15 2024 time 10:12:51)
 ```
 
 ## Macros to make life easier
@@ -214,7 +218,7 @@ logger.provideTime(2024, 6, 15, 10, 12, 51); // (June 15 2024 time 10:12:51)
 To make your code shorter the log library has some macros. The following to lines does exactly the same:
 
 ```
-logger.log(MYLOG, INFO, "Here is an info message %d", 1);
+Logger.log(MYLOG, LOG_LEVEL_INFO, "Here is an info message %d", 1);
 info(MYLOG,"Here is an info message %d", 1)
 ```
 
@@ -240,7 +244,7 @@ You just need to include the macros:
 If you want to see what is logged to either SPIFFS, SD-card or both, you can set a hook in your code like this:
 
 ```
-logger.enableQuery(Serial);
+Logger.enableQuery(Serial);
 ```
 
 While you app is running the logger listens on the provided serial port for the user to hit **_space_** (ascii 32). Then a command prompt will be presented where you have access to the file systems. It works like a simple dos prompt with these commands:
@@ -293,7 +297,7 @@ By default when you register the first logging device a buffer of 50 log lines w
 If you need a bigger buffer than the default 50 message size, you can run (**IMPORTANT:** before registring any devices)
 
 ```
-logger.configure(200, true); // Bigger buffer with 200 messages, wait if buffer is full
+Logger.configure(200, true); // Bigger buffer with 200 messages, wait if buffer is full
 ```
 
 If you have short bursts of messages comming fast you might need a big buffer.
@@ -301,7 +305,7 @@ When the buffer is full, your code will be haltet until the buffer has been empt
 If you have a very time sensitive application you can make the logger discard the log messages when the buffer is full like this:
 
 ```
-logger.configure(200, false); // Bigger buffer, discard messages when buffer is full.
+Logger.configure(200, false); // Bigger buffer, discard messages when buffer is full.
 ```
 
 #### Max log handles for each device
@@ -309,10 +313,10 @@ logger.configure(200, false); // Bigger buffer, discard messages when buffer is 
 By default you can register 10 loghandles per device. If you need more (for big projects) you can configure your device before you register any log Id's:
 
 ```
-logger.configureSerial(100);
-logger.configureSpiffs(100);
-logger.configureSd(spi, 5, 4000000, DEDICATED_SPI, 100);
-logger.configureSyslog("192.168.1.20", 514, "esp32", 100);
+Logger.configureSerial(100);
+Logger.configureSpiffs(100);
+Logger.configureSd(spi, 5, 4000000, DEDICATED_SPI, 100);
+Logger.configureSyslog("192.168.1.20", 514, "esp32", 100);
 ```
 
 In these examples we extend the max handles to 100 instead of 10.

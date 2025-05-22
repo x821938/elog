@@ -1,5 +1,5 @@
 /**
- * @file logTimer.cpp
+ * @file LogTimer.cpp
  * @brief Implementation file for the LogTimer class.
  *
  * This file contains the implementation of the LogTimer class, which provides functionality for timing operations
@@ -7,8 +7,10 @@
  * recording laps, displaying timer information, and formatting time strings.
  */
 
-#include "LogTimer.h"
-#include "Elog.h"
+#ifdef ELOG_TIMER_ENABLE
+
+#include <LogTimer.h>
+#include <Elog.h>
 
 /**
  * @brief Gets the instance of the LogTimer class.
@@ -35,7 +37,7 @@ LogTimer& LogTimer::getInstance()
 void LogTimer::configure(const uint8_t maxTimers, const uint8_t maxLaps)
 {
     if (configured) {
-        logger.logInternal(ERROR, "LogTimer already configured");
+        Logger.logInternal(ELOG_LEVEL_ERROR, "LogTimer already configured");
         return;
     }
 
@@ -65,7 +67,7 @@ void LogTimer::start(const uint8_t timerId)
     }
 
     if (timerId >= maxTimers) {
-        logger.logInternal(ERROR, "Timer id %d out of range", timerId);
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Timer id %d out of range", timerId);
         return;
     }
 
@@ -103,14 +105,14 @@ void LogTimer::lap(const uint8_t timerId)
     }
 
     if (timerId >= maxTimers) {
-        logger.logInternal(ERROR, "Timer id %d out of range", timerId);
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Timer id %d out of range", timerId);
         return;
     }
 
     TimerSetting& timer = timerSettings[timerId];
 
     if (!timer.running) {
-        logger.logInternal(ERROR, "Timer %d not started", timerId);
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Timer %d not started", timerId);
         return;
     }
 
@@ -120,7 +122,7 @@ void LogTimer::lap(const uint8_t timerId)
 
     timer.currentLap++;
     if (timer.currentLap >= timer.maxLaps) {
-        logger.logInternal(WARNING, "Timer %d has reached max laps. Wrapping around", timerId);
+        Logger.logInternal(ELOG_LEVEL_WARNING, "Timer %d has reached max laps. Wrapping around", timerId);
         timer.currentLap = 0;
     }
 }
@@ -142,7 +144,7 @@ void LogTimer::show(const uint8_t timerId, const uint8_t logId, const uint8_t lo
         configure();
     }
     if (timerId >= maxTimers) {
-        logger.logInternal(ERROR, "Timer id %d out of range", timerId);
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Timer id %d out of range", timerId);
         return;
     }
 
@@ -152,7 +154,7 @@ void LogTimer::show(const uint8_t timerId, const uint8_t logId, const uint8_t lo
     uint32_t currentTime = micros();
 
     if (!timer.running) {
-        logger.logInternal(ERROR, "Timer %d not running", timerId);
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Timer %d not running", timerId);
         return;
     }
 
@@ -162,18 +164,18 @@ void LogTimer::show(const uint8_t timerId, const uint8_t logId, const uint8_t lo
 
     if (timer.currentLap == 1) {
         getTimeStringMicros(timer.lapMicros[0], timeString);
-        logger.log(logId, logLevel, "%s / Time elapsed: %s", message, timeString);
+        Logger.log(logId, logLevel, "%s / Time elapsed: %s", message, timeString);
         return;
     }
 
     for (uint8_t lap = 0; lap < timer.currentLap; lap++) {
         getTimeStringMicros(timer.lapMicros[lap], timeString);
-        logger.log(logId, logLevel, "%s / Lap %d: %s", message, lap, timeString);
+        Logger.log(logId, logLevel, "%s / Lap %d: %s", message, lap, timeString);
     }
 
     if (timer.currentLap > 1) {
         getTimeStringMicros(currentTime - timer.timerStartedMicros, timeString);
-        logger.log(logId, logLevel, "%s / Total time elapsed: %s", message, timeString);
+        Logger.log(logId, logLevel, "%s / Total time elapsed: %s", message, timeString);
     }
 }
 
@@ -218,3 +220,5 @@ void LogTimer::getTimeStringMicros(const uint32_t microSeconds, char* output)
 // This is the only instance of the logtimer
 // It is available to all files that include LogTimer.h
 LogTimer& timer = LogTimer::getInstance();
+
+#endif // ELOG_TIMER_ENABLE

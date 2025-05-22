@@ -1,10 +1,10 @@
-#ifndef LOGSD_H
-#define LOGSD_H
+#ifndef ELOG_LOGSD_H
+#define ELOG_LOGSD_H
 
 #include <Arduino.h>
-#include <common.h>
+#include <LogCommon.h>
 
-#ifndef LOGGING_SD_DISABLE
+#ifdef ELOG_SD_ENABLE
 
 #include <LogFormat.h>
 #include <LogRingBuff.h>
@@ -31,6 +31,7 @@ class LogSD {
         file_t* sdFileHandle;
         const char* fileName;
         uint8_t logLevel;
+        uint8_t lastMsgLogLevel;
         uint32_t sdFileCreteLastTry;
         uint8_t logFlags;
         uint8_t fileNumber;
@@ -48,13 +49,17 @@ public:
     void begin();
     void configure(SPIClass& spi, const uint8_t cs, const uint32_t speed, uint8_t spiOption, const uint8_t maxRegistrations);
     void registerSd(const uint8_t logId, const uint8_t loglevel, const char* fileName, const uint8_t logFlags, const uint32_t maxLogFileSize);
+    uint8_t getLogLevel(const uint8_t logId, const char* fileName);
+    void setLogLevel(const uint8_t logId, const uint8_t loglevel, const char* fileName);
+    uint8_t getLastMsgLogLevel(const uint8_t logId, const char* fileName);
     void outputFromBuffer(const LogLineEntry logLineEntry);
     void handlePeek(const LogLineEntry logLineEntry, const uint8_t settingIndex);
-    void write(const LogLineEntry logLineEntry, Setting& setting);
+    void write(LogLineEntry logLineEntry, Setting& setting);
     bool mustLog(const uint8_t logId, const uint8_t logLevel);
     void outputStats();
     void enableQuery(Stream& querySerial);
     void peekStop();
+    uint8_t registeredCount();
 
     void queryCmdHelp();
     void queryCmdDir(const char* directory);
@@ -81,7 +86,7 @@ private:
     char queryCwd[20] = SD_LOG_ROOT; // current working directory
 
     bool peekEnabled = false;
-    uint8_t peekLoglevel = NOLOG;
+    uint8_t peekLoglevel = ELOG_LEVEL_NOLOG;
     uint8_t peekSettingIndex = 0;
     bool peekAllFiles = false;
     bool peekFilter = false; // Text filter enabled
@@ -130,7 +135,7 @@ private:
     void allFilesSync();
 };
 
-#else // LOGGING_SD_DISABLE
+#else // ELOG_SD_ENABLE
 class LogSD {
 public:
     void begin() {};
@@ -142,6 +147,7 @@ public:
     void outputStats() {};
     void enableQuery(Stream& querySerial) {};
     void peekStop() {};
+    uint8_t registeredCount() { return 0; };
 
     void queryCmdHelp() {};
     void queryCmdDir(const char* directory) {};
@@ -155,6 +161,6 @@ public:
     void queryPrintPrompt() {};
     void queryPrintVolumeInfo() {};
 };
-#endif // LOGGING_SD_DISABLE
+#endif // ELOG_SD_ENABLE
 
-#endif // LOGSD_H
+#endif // ELOG_LOGSD_H

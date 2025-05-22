@@ -10,7 +10,7 @@
 
 #ifndef LOGGING_SD_DISABLE
 #include <SdFatConfig.h>
-#include <sdfat.h>
+#include <SdFat.h>
 #endif
 
 struct LogLineEntry {

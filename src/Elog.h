@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <LogFormat.h>
 #include <LogRingBuff.h>
-#include <LogSD.h>
+#include <LogSd.h>
 #include <LogSerial.h>
 #include <LogSpiffs.h>
 #include <LogSyslog.h>

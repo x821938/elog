@@ -5,17 +5,17 @@
     "keywords": "log, logging, logger, loglevel, debug, serial, elog, sd, file, ESP32",
     "repository": {
         "type": "git",
-        "url": "https://github.com/x821938/elog"
+        "url": "https://github.com/keerekeerweere/elog"
     },
     "authors": [
         {
             "name": "Alex Skov Jensen",
             "email": "ard-contact@offline.dk",
-            "url": "https://github.com/x821938/elog"
+            "url": "https://github.com/keerekeerweere/elog"
         }
     ],
     "license": "Apache-2.0",
-    "homepage": "https://github.com/x821938/elog",
+    "homepage": "https://github.com/keerekeerweere/elog",
     "frameworks": "arduino",
     "platforms": "espressif32",
     "dependencies": {

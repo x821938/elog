@@ -118,7 +118,7 @@ void Formatting::getServiceString(char* output, const char* serviceName, const b
     for (int i = 0; i < maxLength; i++) {
         output++;
         if (serviceName[i] != '\0') {
-            output[0] = std::toupper(serviceName[i]);
+            output[0] = toupper(serviceName[i]);
         } else {
             output[0] = ' ';
         }

@@ -1,13 +1,13 @@
-#ifndef LOGSPIFFS_H
-#define LOGSPIFFS_H
+#ifndef ELOG_LOGSPIFFS_H
+#define ELOG_LOGSPIFFS_H
 
 #include <Arduino.h>
 
-#ifndef LOGGING_SPIFFS_DISABLE
+#ifdef ELOG_SPIFFS_ENABLE
 
 #include <LogFormat.h>
 #include <LogRingBuff.h>
-#include <common.h>
+#include <LogCommon.h>
 
 #define SPIFFS_MIN_FREE_SPACE 20000 // 20kB
 #define SPIFFS_SYNC_FILES_EVERY 5000 // 5s
@@ -22,6 +22,7 @@ class LogSpiffs {
         uint8_t logId;
         const char* fileName;
         uint8_t logLevel;
+        uint8_t lastMsgLogLevel;
         uint8_t logFlags;
         File spiffsFileHandle;
         uint8_t fileNumber;
@@ -39,13 +40,17 @@ public:
     void begin();
     void configure(const uint8_t maxRegistrations);
     void registerSpiffs(const uint8_t logId, const uint8_t loglevel, const char* fileName, const uint8_t logFlags, const uint32_t maxLogFileSize);
+    uint8_t getLogLevel(const uint8_t logId, const char* fileName);
+    void setLogLevel(const uint8_t logId, const uint8_t loglevel, const char* fileName);
+    uint8_t getLastMsgLogLevel(const uint8_t logId, const char* fileName);
     void outputFromBuffer(const LogLineEntry logLineEntry);
     void handlePeek(const LogLineEntry logLineEntry, const uint8_t settingIndex);
-    void write(const LogLineEntry logLineEntry, Setting& setting);
+    void write(LogLineEntry logLineEntry, Setting& setting);
     bool mustLog(const uint8_t logId, const uint8_t logLevel);
     void outputStats();
     void enableQuery(Stream& querySerial);
     void peekStop();
+    uint8_t registeredCount();
 
     void queryCmdHelp();
     void queryCmdDir(const char* directory);
@@ -72,7 +77,7 @@ private:
     char queryCwd[LENGTH_LOG_DIR] = SPIFFS_LOG_ROOT; // current working directory for query commands
 
     bool peekEnabled = false;
-    uint8_t peekLoglevel = NOLOG;
+    uint8_t peekLoglevel = ELOG_LEVEL_NOLOG;
     uint8_t peekSettingIndex = 0;
     bool peekAllFiles = false;
     bool peekFilter = false; // Text filter enabled
@@ -97,7 +102,7 @@ private:
     void allFilesOpen();
 };
 
-#else // LOGGING_SPIFFS_DISABLE
+#else // ELOG_SPIFFS_ENABLE
 class LogSpiffs {
 public:
     void begin() {};
@@ -108,6 +113,7 @@ public:
     void outputStats() {};
     void enableQuery(Stream& querySerial) {};
     void peekStop() {};
+    uint8_t registeredCount() { return 0; };
 
     void queryCmdHelp() {};
     void queryCmdDir(const char* directory) {};
@@ -121,6 +127,6 @@ public:
     void queryPrintPrompt() {};
     void queryPrintVolumeInfo() {};
 };
-#endif // LOGGING_SPIFFS_DISABLE
+#endif // ELOG_SPIFFS_ENABLE
 
-#endif // LOGSPIFFS_H
+#endif // ELOG_LOGSPIFFS_H

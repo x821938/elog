@@ -1,9 +1,9 @@
-#ifndef LOGSERIAL_H
-#define LOGSERIAL_H
+#ifndef ELOG_LOGSERIAL_H
+#define ELOG_LOGSERIAL_H
 
 #include <Arduino.h>
 #include <LogFormat.h>
-#include <common.h>
+#include <LogCommon.h>
 
 using namespace std;
 
@@ -13,6 +13,7 @@ class LogSerial {
         Stream* serial;
         const char* serviceName;
         uint8_t logLevel;
+        uint8_t lastMsgLogLevel;
         uint8_t logFlags;
     };
 
@@ -25,10 +26,14 @@ public:
     void begin();
     void configure(const uint8_t maxRegistrations);
     void registerSerial(const uint8_t logId, const uint8_t loglevel, const char* serviceName, Stream& serial, const uint8_t logFlags);
+    uint8_t getLogLevel(const uint8_t logId, Stream& serial);
+    void setLogLevel(const uint8_t logId, const uint8_t loglevel, Stream& serial);
+    uint8_t getLastMsgLogLevel(const uint8_t logId, Stream& serial);
     void outputFromBuffer(const LogLineEntry logLineEntry, bool muteSerialOutput);
     void handlePeek(const LogLineEntry logLineEntry, const uint8_t settingIndex);
     bool mustLog(const uint8_t logId, const uint8_t logLevel);
     void outputStats();
+    uint8_t registeredCount();
 
     void enableQuery(Stream& querySerial);
     void queryCmdHelp();
@@ -47,7 +52,7 @@ private:
     uint8_t registeredSerialCount = 0;
 
     bool peekEnabled = false;
-    uint8_t peekLoglevel = NOLOG;
+    uint8_t peekLoglevel = ELOG_LEVEL_NOLOG;
     uint8_t peekSettingIndex = 0;
     bool peekAllServices = false;
     bool peekFilter = false; // Text filter enabled
@@ -55,7 +60,7 @@ private:
 
     Stream* querySerial = nullptr;
 
-    void write(const LogLineEntry logLineEntry, Setting& setting);
+    void write(LogLineEntry logLineEntry, Setting& setting);
 };
 
-#endif // LOGSERIAL_H
+#endif // ELOG_LOGSERIAL_H

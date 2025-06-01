@@ -1,4 +1,4 @@
-#ifndef LOGGING_SYSLOG_DISABLE
+#ifdef ELOG_SYSLOG_ENABLE
 
 #include <Elog.h>
 #include <LogSyslog.h>
@@ -16,10 +16,10 @@ void LogSyslog::begin()
  * hostname: the hostname of the device
  * maxRegistrations: the maximum number of registrations
  */
-void LogSyslog::configure(const char* serverName, const uint16_t port, const char* hostname, const uint8_t maxRegistrations)
+void LogSyslog::configure(const char* serverName, const uint16_t port, const char* hostname, bool waitIfNotReady, const uint16_t maxWaitMilliseconds, const uint8_t maxRegistrations)
 {
     if (syslogConfigured) {
-        logger.logInternal(ERROR, "Syslog already configured with %s:%d, hostname %s", syslogServer, syslogPort, syslogHostname);
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Syslog already configured with %s:%d, hostname %s", syslogServer, syslogPort, syslogHostname);
         return;
     }
 
@@ -29,9 +29,11 @@ void LogSyslog::configure(const char* serverName, const uint16_t port, const cha
     this->syslogServer = serverName;
     this->syslogPort = port;
     this->syslogHostname = hostname;
+    this->waitIfNotReady = waitIfNotReady;
+    this->maxWaitMilliseconds = maxWaitMilliseconds;
     syslogConfigured = true;
 
-    logger.logInternal(INFO, "Configured syslog server %s:%d, hostname %s, max registrations %d", serverName, port, hostname, maxRegistrations);
+    Logger.logInternal(ELOG_LEVEL_INFO, "Configured syslog server %s:%d, hostname %s, max registrations %d", serverName, port, hostname, maxRegistrations);
 }
 
 /* Register syslog for logging
@@ -43,12 +45,12 @@ void LogSyslog::configure(const char* serverName, const uint16_t port, const cha
 void LogSyslog::registerSyslog(const uint8_t logId, const uint8_t loglevel, const uint8_t facility, const char* appName)
 {
     if (!syslogConfigured) {
-        logger.logInternal(ERROR, "Syslog not configured. Call configureSyslog first");
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Syslog not configured. Call configureSyslog first");
         return;
     }
 
     if (syslogSettingsCount >= maxRegistrations) {
-        logger.logInternal(ERROR, "Maximum number of syslog registrations reached: %d", maxRegistrations);
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Maximum number of syslog registrations reached: %d", maxRegistrations);
         return;
     }
 
@@ -58,10 +60,45 @@ void LogSyslog::registerSyslog(const uint8_t logId, const uint8_t loglevel, cons
     setting->appName = appName;
     setting->facility = facility;
     setting->logLevel = loglevel;
+    setting->lastMsgLogLevel = ELOG_LEVEL_NOLOG;
 
     char logLevelStr[10];
     formatter.getLogLevelStringRaw(logLevelStr, loglevel);
-    logger.logInternal(INFO, "Registered syslog id %d, level %s, facility %d, app name %s", logId, logLevelStr, facility, appName);
+    Logger.logInternal(ELOG_LEVEL_INFO, "Registered syslog id %d, level %s, facility %d, app name %s", logId, logLevelStr, facility, appName);
+}
+
+uint8_t LogSyslog::getLogLevel(const uint8_t logId, const uint8_t facility)
+{
+    for (uint8_t i = 0; i < syslogSettingsCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && setting->facility == facility) {
+            return setting->logLevel;
+        }
+    }
+
+    return ELOG_LEVEL_NOLOG;
+}
+
+void LogSyslog::setLogLevel(const uint8_t logId, const uint8_t loglevel, const uint8_t facility)
+{
+    for (uint8_t i = 0; i < syslogSettingsCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && setting->facility == facility) {
+            setting->logLevel = loglevel;
+        }
+    }
+}
+
+uint8_t LogSyslog::getLastMsgLogLevel(const uint8_t logId, const uint8_t facility)
+{
+    for (uint8_t i = 0; i < syslogSettingsCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && setting->facility == facility) {
+            return setting->lastMsgLogLevel;
+        }
+    }
+
+    return ELOG_LEVEL_NOLOG;
 }
 
 /* Output the logline to the registered syslogs
@@ -71,8 +108,10 @@ void LogSyslog::outputFromBuffer(const LogLineEntry logLineEntry)
 {
     for (uint8_t i = 0; i < syslogSettingsCount; i++) {
         Setting* setting = &settings[i];
-        if (setting->logId == logLineEntry.logId && setting->logLevel != NOLOG) {
+        if (setting->logId == logLineEntry.logId &&
+            (setting->logLevel != ELOG_LEVEL_NOLOG || logLineEntry.logLevel == ELOG_LEVEL_ALWAYS)) {
             if (logLineEntry.logLevel <= setting->logLevel) {
+                setting->lastMsgLogLevel = logLineEntry.logLevel;
                 write(logLineEntry, *setting);
             }
             handlePeek(logLineEntry, i); // If peek is enabled from query command
@@ -84,29 +123,52 @@ void LogSyslog::outputFromBuffer(const LogLineEntry logLineEntry)
  * logLineEntry: the log line entry
  * setting: the syslog setting
  */
-void LogSyslog::write(const LogLineEntry logLineEntry, Setting& setting)
+void LogSyslog::write(LogLineEntry logLineEntry, Setting& setting)
 {
-    if (!WiFi.isConnected()) {
-        stats.messagesDiscardedTotal++;
-        logger.logInternal(WARNING, "WiFi not connected. Cannot send syslog message");
-        return;
-    }
+    static int const syslogLevel[ELOG_NUM_LOG_LEVELS] = { 6, 0, 1, 2, 3, 4, 5, 6, 7, 7, 7 };
 
-    uint8_t priority = logLineEntry.logLevel | (setting.facility << 3);
+    while (true) {
+        uint32_t sentBytes = 0;
+        int success = 0;
+        if (WiFi.isConnected()) {
+            uint8_t priority = syslogLevel[logLineEntry.logLevel] | (setting.facility << 3);
 
-    uint8_t buffer[256];
-    // Date and time is not included in the syslog message. It is assumed that the syslog server will add it
-    int len = snprintf((char*)buffer, 256, "<%d>%s %s: %s", priority, syslogHostname, setting.appName, logLineEntry.logMessage);
+            uint8_t buffer[256];
+            // Date and time is not included in the syslog message. It is assumed that the syslog server will add it
+            snprintf((char*)buffer, sizeof(buffer), "<%d>%s %s: %s", priority, syslogHostname, setting.appName, logLineEntry.logMessage);
+            int len = strlen((char*)buffer);
 
-    syslogUdp.beginPacket(syslogServer, syslogPort);
-    uint32_t sentBytes = syslogUdp.write(buffer, len);
-    syslogUdp.endPacket();
+            // Remove any non-printing characters at the end of the line
+            while (len >= 1 && !isprint(buffer[len - 1])) {
+                len--;
+            }
 
-    if (sentBytes == len) {
-        stats.bytesWrittenTotal += len;
-        stats.messagesWrittenTotal++;
-    } else {
-        logger.logInternal(WARNING, "Failed to send syslog message");
+            if (syslogUdp.beginPacket(syslogServer, syslogPort) == 1) {
+                sentBytes = syslogUdp.write(buffer, len);
+                success = syslogUdp.endPacket();
+            }
+
+            if (success && sentBytes == len) {
+                stats.bytesWrittenTotal += len;
+                stats.messagesWrittenTotal++;
+                return;
+            }
+        }
+
+        // WiFi is not ready, or sending the log failed
+
+        if (!waitIfNotReady || maxWaitMilliseconds == 0) {
+            stats.messagesDiscardedTotal++;
+            Logger.logInternal(ELOG_LEVEL_WARNING, "WiFi not connected or could not send syslog message");
+            return;
+        }
+
+        // Wait 250 ms at a time
+        unsigned long delayTime = (maxWaitMilliseconds > 250) ? 250 : maxWaitMilliseconds;
+        delay(delayTime);
+        // It is intentional that after a cumulative delay equal to the configured
+        // maxWaitMilliseconds, we stop waiting.
+        maxWaitMilliseconds -= delayTime;
     }
 }
 
@@ -145,7 +207,8 @@ bool LogSyslog::mustLog(const uint8_t logId, const uint8_t logLevel)
     for (uint8_t i = 0; i < syslogSettingsCount; i++) {
         Setting* setting = &settings[i];
         if (setting->logId == logId) {
-            if (logLevel <= setting->logLevel && setting->logLevel != NOLOG) {
+            if (logLevel <= setting->logLevel &&
+                (setting->logLevel != ELOG_LEVEL_NOLOG || logLevel == ELOG_LEVEL_ALWAYS)) {
                 return true;
             }
         }
@@ -158,8 +221,15 @@ bool LogSyslog::mustLog(const uint8_t logId, const uint8_t logLevel)
 void LogSyslog::outputStats()
 {
     if (syslogConfigured) {
-        logger.logInternal(INFO, "Syslog stats. Messages written: %d, Bytes written: %d, Messages discarded: %d", stats.messagesWrittenTotal, stats.bytesWrittenTotal, stats.messagesDiscardedTotal);
+        Logger.logInternal(ELOG_LEVEL_INFO, "Syslog stats. Messages written: %d, Bytes written: %d, Messages discarded: %d", stats.messagesWrittenTotal, stats.bytesWrittenTotal, stats.messagesDiscardedTotal);
     }
+}
+
+/* Return the number of registrations
+ */
+uint8_t LogSyslog::registeredCount()
+{
+    return syslogSettingsCount;
 }
 
 /* Enable the query serial port
@@ -185,8 +255,8 @@ void LogSyslog::queryCmdHelp()
 bool LogSyslog::queryCmdPeek(const char* appName, const char* loglevel, const char* textFilter)
 {
     peekLoglevel = formatter.getLogLevelFromString(loglevel);
-    if (peekLoglevel == NOLOG) {
-        querySerial->printf("Invalid loglevel %s. Allowed values are: debug, info, notic, warn, error, crit, alert, emerg\n", loglevel);
+    if (peekLoglevel == ELOG_LEVEL_NOLOG) {
+        querySerial->printf("Invalid loglevel %s. Allowed values are: verbo, trace, debug, info, notic, warn, error, crit, alert, emerg, alway\n", loglevel);
         return false;
     }
 
@@ -248,4 +318,4 @@ void LogSyslog::peekStop()
     peekEnabled = false;
 }
 
-#endif // LOGGING_SYSLOG_DISABLE
+#endif // ELOG_SYSLOG_ENABLE

@@ -13,22 +13,22 @@ void Formatting::getLogStamp(char* output, const uint32_t logTime, const uint8_t
     char logServiceStr[LENGTH_OF_SERVICE] = { 0 };
     char logLevelStr[LENGTH_OF_LEVEL] = { 0 };
 
-    if (!(logFlags & FLAG_NO_TIME)) {
-        if (logFlags & FLAG_TIME_SIMPLE)
+    if (!(logFlags & ELOG_FLAG_NO_TIME)) {
+        if (logFlags & ELOG_FLAG_TIME_SIMPLE)
             getSimpleTimeString(timeStr, logTime);
-        else if (logFlags & FLAG_TIME_LONG)
+        else if (logFlags & ELOG_FLAG_TIME_LONG)
             getTimeLongString(timeStr, logTime);
-        else if (logFlags & FLAG_TIME_SHORT)
+        else if (logFlags & ELOG_FLAG_TIME_SHORT)
             getTimeMillisString(timeStr, logTime, true);
         else // default to long time
             getTimeLongString(timeStr, logTime);
     }
 
-    if (!(logFlags & FLAG_NO_SERVICE)) {
-        getServiceString(logServiceStr, serviceName, logFlags & FLAG_SERVICE_LONG);
+    if (!(logFlags & ELOG_FLAG_NO_SERVICE)) {
+        getServiceString(logServiceStr, serviceName, logFlags & ELOG_FLAG_SERVICE_LONG);
     }
 
-    if (!(logFlags & FLAG_NO_LEVEL)) {
+    if (!(logFlags & ELOG_FLAG_NO_LEVEL)) {
         getLogLevelString(logLevelStr, logLevel);
     }
     strcpy(output, timeStr);
@@ -69,7 +69,7 @@ void Formatting::getTimeRtcString(char* output, const uint32_t milliseconds)
     tv.tv_usec -= (millisSinceStamps % 1000) * 1000;
 
     struct tm* tmstruct = localtime(&tv.tv_sec);
-    sprintf(output, "%04d-%02d-%02d %02d:%02d:%02d %03d ", (tmstruct->tm_year) + 1900, (tmstruct->tm_mon) + 1, tmstruct->tm_mday, tmstruct->tm_hour, tmstruct->tm_min, tmstruct->tm_sec, tv.tv_usec / 1000);
+    sprintf(output, "%04d-%02d-%02d %02d:%02d:%02d.%03d ", (tmstruct->tm_year) + 1900, (tmstruct->tm_mon) + 1, tmstruct->tm_mday, tmstruct->tm_hour, tmstruct->tm_min, tmstruct->tm_sec, tv.tv_usec / 1000);
 }
 
 /* Get the time string in the format of ddd:HH:MM:SS.mmm
@@ -88,7 +88,7 @@ void Formatting::getTimeMillisString(char* output, uint32_t milliSeconds, const 
     if (shortTimeFormat) {
         sprintf(output, "%02u:%02u:%02u ", hours % 24, minutes % 60, seconds % 60);
     } else {
-        sprintf(output, "%03u:%02u:%02u:%02u:%03u ", days, hours % 24, minutes % 60, seconds % 60, milliSeconds % 1000);
+        sprintf(output, "%03u:%02u:%02u:%02u.%03u ", days, hours % 24, minutes % 60, seconds % 60, milliSeconds % 1000);
     }
 }
 
@@ -118,7 +118,7 @@ void Formatting::getServiceString(char* output, const char* serviceName, const b
     for (int i = 0; i < maxLength; i++) {
         output++;
         if (serviceName[i] != '\0') {
-            output[0] = std::toupper(serviceName[i]);
+            output[0] = toupper(serviceName[i]);
         } else {
             output[0] = ' ';
         }
@@ -139,13 +139,15 @@ void Formatting::getLogLevelString(char* output, const uint8_t logLevel)
     sprintf(output, "[%-5s] ", logLevelRawString);
 }
 
+static const char* logLevelStrings[ELOG_NUM_LOG_LEVELS] =
+    { "ALWAY", "EMERG", "ALERT", "CRIT", "ERROR", "WARN", "NOTIC", "INFO", "DEBUG", "TRACE", "VERBO" };
+
 /* Get the log level string in the format of LOGLEVEL
  * logLevel: the log level
  * output: the output string
  */
 void Formatting::getLogLevelStringRaw(char* output, const uint8_t logLevel)
 {
-    static const char* logLevelStrings[] = { "EMERG", "ALERT", "CRIT", "ERROR", "WARN", "NOTIC", "INFO", "DEBUG" };
     strcpy(output, logLevelStrings[logLevel]);
 }
 
@@ -155,13 +157,12 @@ void Formatting::getLogLevelStringRaw(char* output, const uint8_t logLevel)
  */
 uint8_t Formatting::getLogLevelFromString(const char* logLevel)
 {
-    static const char* logLevelStrings[] = { "EMERG", "ALERT", "CRIT", "ERROR", "WARN", "NOTIC", "INFO", "DEBUG" };
     for (uint8_t i = 0; i < 8; i++) {
         if (strcasecmp(logLevel, logLevelStrings[i]) == 0) {
             return i;
         }
     }
-    return NOLOG;
+    return ELOG_LEVEL_NOLOG;
 }
 
 /* Check if the real time has been provided

@@ -13,13 +13,13 @@ void LogSerial::begin()
 void LogSerial::configure(const uint8_t maxRegistrations)
 {
     if (this->maxSerialRegistrations > 0) {
-        logger.logInternal(ERROR, "Serial logging already configured with %d registrations", this->maxSerialRegistrations);
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Serial logging already configured with %d registrations", this->maxSerialRegistrations);
         return;
     }
 
     this->maxSerialRegistrations = maxRegistrations;
     settings = new Setting[maxRegistrations];
-    logger.logInternal(INFO, "Serial logging configured with %d registrations", maxRegistrations);
+    Logger.logInternal(ELOG_LEVEL_INFO, "Serial logging configured with %d registrations", maxRegistrations);
 }
 
 /* Register a serial port for logging
@@ -36,7 +36,7 @@ void LogSerial::registerSerial(const uint8_t logId, const uint8_t loglevel, cons
     }
 
     if (registeredSerialCount >= maxSerialRegistrations) {
-        logger.logInternal(ERROR, "Max number of serial registrations reached : %d", maxSerialRegistrations);
+        Logger.logInternal(ELOG_LEVEL_ERROR, "Max number of serial registrations reached : %d", maxSerialRegistrations);
         return;
     }
 
@@ -46,11 +46,46 @@ void LogSerial::registerSerial(const uint8_t logId, const uint8_t loglevel, cons
     setting->serial = &serial;
     setting->serviceName = serviceName;
     setting->logLevel = loglevel;
+    setting->lastMsgLogLevel = ELOG_LEVEL_NOLOG;
     setting->logFlags = logFlags;
 
     char logLevelStr[10];
     formatter.getLogLevelStringRaw(logLevelStr, loglevel);
-    logger.logInternal(INFO, "Registered Serial log id %d, level %s, serviceName %s", logId, logLevelStr, serviceName);
+    Logger.logInternal(ELOG_LEVEL_INFO, "Registered Serial log id %d, level %s, serviceName %s", logId, logLevelStr, serviceName);
+}
+
+uint8_t LogSerial::getLogLevel(const uint8_t logId, Stream& serial)
+{
+    for (uint8_t i = 0; i < registeredSerialCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && setting->serial == &serial) {
+            return setting->logLevel;
+        }
+    }
+
+    return ELOG_LEVEL_NOLOG;
+}
+
+void LogSerial::setLogLevel(const uint8_t logId, const uint8_t loglevel, Stream& serial)
+{
+    for (uint8_t i = 0; i < registeredSerialCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && setting->serial == &serial) {
+            setting->logLevel = loglevel;
+        }
+    }
+}
+
+uint8_t LogSerial::getLastMsgLogLevel(const uint8_t logId, Stream& serial)
+{
+    for (uint8_t i = 0; i < registeredSerialCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId && setting->serial == &serial) {
+            return setting->lastMsgLogLevel;
+        }
+    }
+
+    return ELOG_LEVEL_NOLOG;
 }
 
 /* Output the logline to the registered serial ports
@@ -60,13 +95,15 @@ void LogSerial::registerSerial(const uint8_t logId, const uint8_t loglevel, cons
 void LogSerial::outputFromBuffer(const LogLineEntry logLineEntry, bool muteSerialOutput)
 {
     if (logLineEntry.internalLogDevice != nullptr) {
-        Setting settingUnusable = { 0, nullptr, nullptr, NOLOG };
+        Setting settingUnusable = { 0, nullptr, nullptr, ELOG_LEVEL_NOLOG };
         write(logLineEntry, settingUnusable);
     } else {
         for (uint8_t i = 0; i < registeredSerialCount; i++) {
             Setting* setting = &settings[i];
-            if (setting->logId == logLineEntry.logId && setting->logLevel != NOLOG) {
+            if (setting->logId == logLineEntry.logId &&
+                (setting->logLevel != ELOG_LEVEL_NOLOG || logLineEntry.logLevel == ELOG_LEVEL_ALWAYS)) {
                 if (logLineEntry.logLevel <= setting->logLevel && !muteSerialOutput) {
+                    setting->lastMsgLogLevel = logLineEntry.logLevel;
                     write(logLineEntry, *setting);
                 }
                 handlePeek(logLineEntry, i); // If peek is enabled from query command
@@ -110,7 +147,8 @@ bool LogSerial::mustLog(const uint8_t logId, const uint8_t logLevel)
     for (uint8_t i = 0; i < registeredSerialCount; i++) {
         Setting* setting = &settings[i];
         if (setting->logId == logId) {
-            if (logLevel <= setting->logLevel && setting->logLevel != NOLOG) {
+            if (logLevel <= setting->logLevel &&
+                (setting->logLevel != ELOG_LEVEL_NOLOG || logLevel == ELOG_LEVEL_ALWAYS)) {
                 return true;
             }
         }
@@ -122,7 +160,7 @@ bool LogSerial::mustLog(const uint8_t logId, const uint8_t logLevel)
  * logLineEntry: the log line entry
  * setting: the setting for the serial port
  */
-void LogSerial::write(const LogLineEntry logLineEntry, Setting& setting)
+void LogSerial::write(LogLineEntry logLineEntry, Setting& setting)
 {
     static char logStamp[LENGTH_OF_LOG_STAMP];
     char* service;
@@ -150,7 +188,14 @@ void LogSerial::write(const LogLineEntry logLineEntry, Setting& setting)
  */
 void LogSerial::outputStats()
 {
-    logger.logInternal(INFO, "Serial stats. Messages written: %d, Bytes written: %d", stats.messagesWrittenTotal, stats.bytesWrittenTotal);
+    Logger.logInternal(ELOG_LEVEL_INFO, "Serial stats. Messages written: %d, Bytes written: %d", stats.messagesWrittenTotal, stats.bytesWrittenTotal);
+}
+
+/* Return the number of registrations
+ */
+uint8_t LogSerial::registeredCount()
+{
+    return registeredSerialCount;
 }
 
 /* Enable the query serial port
@@ -178,8 +223,8 @@ void LogSerial::queryCmdHelp()
 bool LogSerial::queryCmdPeek(const char* serviceName, const char* loglevel, const char* textFilter)
 {
     peekLoglevel = formatter.getLogLevelFromString(loglevel);
-    if (peekLoglevel == NOLOG) {
-        querySerial->printf("Invalid loglevel %s. Allowed values are: debug, info, notic, warn, error, crit, alert, emerg\n", loglevel);
+    if (peekLoglevel == ELOG_LEVEL_NOLOG) {
+        querySerial->printf("Invalid loglevel %s. Allowed values are: verbo, trace, debug, info, notic, warn, error, crit, alert, emerg\n", loglevel);
         return false;
     }
 

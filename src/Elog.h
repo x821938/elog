@@ -4,11 +4,14 @@
 #include <Arduino.h>
 #include <LogFormat.h>
 #include <LogRingBuff.h>
-#include <LogSD.h>
+#include <LogSd.h>
 #include <LogSerial.h>
 #include <LogSpiffs.h>
 #include <LogSyslog.h>
 #include <esp_task_wdt.h>
+
+// From ArduinoLog.h
+#define CR "\r\n"
 
 #define LENGTH_COMMAND 10
 #define LENGTH_COMMAND_BUFFER 50
@@ -49,24 +52,104 @@ public:
 
     void configure(uint16_t logLineCapacity = 50, bool waitIfBufferFull = true);
     void log(uint8_t logId, uint8_t logLevel, const char* format, ...);
+    void log(uint8_t logId, uint8_t logLevel, const __FlashStringHelper* format, ...);
     void logHex(uint8_t logId, uint8_t logLevel, const char* message, const uint8_t* data, uint16_t length);
     void configureSerial(const uint8_t maxRegistrations = 10);
     void registerSerial(const uint8_t logId, const uint8_t logLevel, const char* serviceName, Stream& serial = Serial, const uint8_t logFlags = 0);
-#ifndef LOGGING_SPIFFS_DISABLE
+    uint8_t getSerialLogLevel(const uint8_t logId, Stream& serial = Serial);
+    void setSerialLogLevel(const uint8_t logId, const uint8_t logLevel, Stream& serial = Serial);
+    uint8_t getSerialLastMsgLogLevel(const uint8_t logId, Stream& serial = Serial);
+#ifdef ELOG_SPIFFS_ENABLE
     void configureSpiffs(const uint8_t maxRegistrations = 10);
-    void registerSpiffs(const uint8_t logId, const uint8_t logLevel, const char* fileName, const uint8_t logFlags = FLAG_NONE, const uint32_t maxLogFileSize = 100000);
-#endif // LOGGING_SPIFFS_DISABLE
-#ifndef LOGGING_SD_DISABLE
+    void registerSpiffs(const uint8_t logId, const uint8_t logLevel, const char* fileName, const uint8_t logFlags = ELOG_FLAG_NONE, const uint32_t maxLogFileSize = 100000);
+    uint8_t getSpiffsLogLevel(const uint8_t logId, const char* fileName);
+    void setSpiffsLogLevel(const uint8_t logId, const uint8_t logLevel, const char* fileName);
+    uint8_t getSpiffsLastMsgLogLevel(const uint8_t logId, const char* fileName);
+#endif // ELOG_SPIFFS_ENABLE
+#ifdef ELOG_SD_ENABLE
     void configureSd(SPIClass& spi, const uint8_t cs, const uint32_t speed = 2000000, const uint8_t spiOption = DEDICATED_SPI, const uint8_t maxFilesettings = 10);
-    void registerSd(const uint8_t logId, const uint8_t logLevel, const char* fileName, const uint8_t logFlags = FLAG_NONE, const uint32_t maxLogFileSize = 100000);
-#endif // LOGGING_SD_DISABLE
-#ifndef LOGGING_SYSLOG_DISABLE
-    void configureSyslog(const char* server, uint16_t port = 514, const char* hostname = "esp32", const uint8_t maxRegistrations = 10);
+    void registerSd(const uint8_t logId, const uint8_t logLevel, const char* fileName, const uint8_t logFlags = ELOG_FLAG_NONE, const uint32_t maxLogFileSize = 100000);
+    uint8_t getSdLogLevel(const uint8_t logId, const char* fileName);
+    void setSdLogLevel(const uint8_t logId, const uint8_t logLevel, const char* fileName);
+    uint8_t getSdLastMsgLogLevel(const uint8_t logId, const char* fileName);
+#endif // ELOG_SD_ENABLE
+#ifdef ELOG_SYSLOG_ENABLE
+    void configureSyslog(const char* server, uint16_t port = 514, const char* hostname = "esp32", bool waitIfNotReady = false, const uint16_t maxWaitMilliseconds = 5000,
+                         const uint8_t maxRegistrations = 10);
     void registerSyslog(const uint8_t logId, const uint8_t logLevel, const uint8_t facility, const char* appName);
-#endif // LOGGING_SYSLOG_DISABLE
-    void configureInternalLogging(Stream& internalLogDevice, uint8_t internalLogLevel = ERROR, uint16_t statsEvery = 10000);
+    uint8_t getSyslogLogLevel(const uint8_t logId, const uint8_t facility);
+    void setSyslogLogLevel(const uint8_t logId, const uint8_t logLevel, const uint8_t facility);
+    uint8_t getSyslogLastMsgLogLevel(const uint8_t logId, const uint8_t facility);
+#endif // ELOG_SYSLOG_ENABLE
+    void configureInternalLogging(Stream& internalLogDevice, uint8_t internalLogLevel = ELOG_LEVEL_ERROR, uint16_t statsEvery = 10000);
     void enableQuery(Stream& serialPort);
     void provideTime(const uint16_t year, const uint8_t month, const uint8_t day, const uint8_t hour, const uint8_t minute, const uint8_t second);
+
+    template <class T, typename ...Args>
+    inline void verbose(uint16_t logId, T format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_VERBOSE, format, args...);
+    }
+
+    template <class T, typename ...Args>
+    inline void trace(uint16_t logId, T format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_TRACE, format, args...);
+    }
+
+    template <class T, typename ...Args>
+    inline void debug(uint16_t logId, T format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_DEBUG, format, args...);
+    }
+
+    template <class T, typename ...Args>
+    inline void info(uint16_t logId, T format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_INFO, format, args...);
+    }
+
+    template <class T, typename ...Args>
+    inline void notice(uint16_t logId, T format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_NOTICE, format, args...);
+    }
+
+    template <class T, typename ...Args>
+    inline void warning(uint16_t logId, T format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_WARNING, format, args...);
+    }
+
+    template <class T, typename ...Args>
+    inline void error(uint16_t logId, T format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_ERROR, format, args...);
+    }
+
+    template <class T, typename ...Args>
+    inline void critical(uint16_t logId, T format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_CRITICAL, format, args...);
+    }
+
+    template <class T, typename ...Args>
+    inline void alert(uint16_t logId, T format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_ALERT, format, args...);
+    }
+
+    template <class T, typename ...Args>
+    inline void emergency(uint16_t logId, T format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_EMERGENCY, format, args...);
+    }
+
+    template <class T, typename ...Args>
+    inline void always(uint16_t logId, T format, Args ...args)
+    {
+        log(logId, ELOG_LEVEL_ALWAYS, format, args...);
+    }
 
 private:
     Elog() { } // Private constructor. Part of singleton pattern
@@ -78,13 +161,8 @@ private:
     Formatting formatter;
     LogRingBuff<LogLineEntry> ringBuff;
 
-    uint8_t registeredSpiffsCount = 0;
-    uint8_t registeredSdCount = 0;
-    uint8_t registeredSyslogCount = 0;
-    uint8_t registeredSerialCount = 0;
-
     Stream* internalLogDevice = &Serial;
-    uint8_t internalLogLevel = ERROR; // Tell library user when he is doing something wrong by default
+    uint8_t internalLogLevel = ELOG_LEVEL_ERROR; // Tell library user when he is doing something wrong by default
 
     BufferStats bufferStats;
     uint16_t statsEvery = 10000;
@@ -131,6 +209,6 @@ private:
     void queryPrintPrompt();
 };
 
-extern Elog& logger; // Make an instance available to user when he includes the library
+extern Elog& Logger; // Make an instance available to user when he includes the library
 
 #endif // ELOG_H

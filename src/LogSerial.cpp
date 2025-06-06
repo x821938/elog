@@ -100,8 +100,7 @@ void LogSerial::outputFromBuffer(const LogLineEntry logLineEntry, bool muteSeria
     } else {
         for (uint8_t i = 0; i < registeredSerialCount; i++) {
             Setting* setting = &settings[i];
-            if (setting->logId == logLineEntry.logId &&
-                (setting->logLevel != ELOG_LEVEL_NOLOG || logLineEntry.logLevel == ELOG_LEVEL_ALWAYS)) {
+            if (setting->logId == logLineEntry.logId && (setting->logLevel != ELOG_LEVEL_NOLOG || logLineEntry.logLevel == ELOG_LEVEL_ALWAYS)) {
                 if (logLineEntry.logLevel <= setting->logLevel && !muteSerialOutput) {
                     setting->lastMsgLogLevel = logLineEntry.logLevel;
                     write(logLineEntry, *setting);
@@ -147,8 +146,7 @@ bool LogSerial::mustLog(const uint8_t logId, const uint8_t logLevel)
     for (uint8_t i = 0; i < registeredSerialCount; i++) {
         Setting* setting = &settings[i];
         if (setting->logId == logId) {
-            if (logLevel <= setting->logLevel &&
-                (setting->logLevel != ELOG_LEVEL_NOLOG || logLevel == ELOG_LEVEL_ALWAYS)) {
+            if (logLevel <= setting->logLevel && (setting->logLevel != ELOG_LEVEL_NOLOG || logLevel == ELOG_LEVEL_ALWAYS)) {
                 return true;
             }
         }
@@ -224,7 +222,7 @@ bool LogSerial::queryCmdPeek(const char* serviceName, const char* loglevel, cons
 {
     peekLoglevel = formatter.getLogLevelFromString(loglevel);
     if (peekLoglevel == ELOG_LEVEL_NOLOG) {
-        querySerial->printf("Invalid loglevel %s. Allowed values are: verbo, trace, debug, info, notic, warn, error, crit, alert, emerg\n", loglevel);
+        querySerial->printf("Invalid loglevel\n\npeek <filename> <loglevel> <filtertext>\nAllowed loglevels are: verbo, trace, debug, info, notic, warn, error, crit, alert, emerg\n", loglevel);
         return false;
     }
 

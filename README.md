@@ -31,7 +31,7 @@ The you register your log Id in order to start logging to it. This will often be
 void setup()
 {
     Serial.begin(115200);
-    Logger.registerSerial(MYLOG, LOG_LEVEL_DEBUG, "tst"); // We want messages with DEBUG level and lower
+    Logger.registerSerial(MYLOG, ELOG_LEVEL_DEBUG, "tst"); // We want messages with DEBUG level and lower
 }
 ```
 
@@ -41,9 +41,9 @@ Then inside your code you can send messages to the serial port.
 void loop()
 {
     for (int i = 0; i < 1000; i++) {
-        Logger.log(MYLOG, LOG_LEVEL_DEBUG, "Counter is %d", i);
+        Logger.log(MYLOG, ELOG_LEVEL_DEBUG, "Counter is %d", i);
         if (i % 10 == 0) {
-            Logger.log(MYLOG, LOG_LEVEL_NOTICE, "Counter divisible by 10");
+            Logger.log(MYLOG, ELOG_LEVEL_NOTICE, "Counter divisible by 10");
         }
         delay(500);
     }
@@ -89,8 +89,8 @@ This is the most simple form of using the logger. You register a handle and send
 
 ```
 #define MYLOG 0
-Logger.registerSerial(MYLOG, LOG_LEVEL_DEBUG, "tst");
-Logger.log(MYLOG, LOG_LEVEL_INFO, "Here is a message");
+Logger.registerSerial(MYLOG, ELOG_LEVEL_DEBUG, "tst");
+Logger.log(MYLOG, ELOG_LEVEL_INFO, "Here is a message");
 ```
 
 The service name is "tst". It will always be upper cased and truncated to 3 chars when outputted.
@@ -112,15 +112,15 @@ Logging to a SD-card can be done by configuring SPI for the cardreader and regis
 SPIClass spi = SPIClass(SPI);
 spi.begin(18, 19, 23, 5); // Set your pins of your card reader here. SCK=19, MISO=19, MOSI=23, SS=5
 Logger.configureSd(spi, 5, 2000000); // SS pin 5, bus speed = 2Mhz
-Logger.registerSd(INFO, LOG_LEVEL_DEBUG, "mylog");
+Logger.registerSd(INFO, ELOG_LEVEL_DEBUG, "mylog");
 
-Logger.log(MYLOG, LOG_LEVEL_INFO, "Here is a message");
+Logger.log(MYLOG, LOG_ELEVEL_INFO, "Here is a message");
 ```
 
 Every time the ESP is booted a new directory on the SD-card is created. The folder name is in format 0001 and is increased on every boot. In this example the first logfile is called mylog.001. When the file reaches the size of 100Kb a new file named mylog.002 will be created. If you want another max size of the logfile use:
 
 ```
-Logger.registerSd(MYLOG, LOG_LEVEL_INFO, "mylog", FLAG_NONE, 20000);
+Logger.registerSd(MYLOG, ELOG_LEVEL_INFO, "mylog", FLAG_NONE, 20000);
 ```
 
 When registing the SD card file you decide the loglevel that should go to the file system. In this case it is loglevel equal or lower than INFO
@@ -129,14 +129,16 @@ You could pop out the SD card for reading the files. This logger is pretty resis
 
 You could also use the "Query command prompt". Read more in this help.
 
+**IMPORTANT**: To use SD functionality you need to set compiler directive ELOG_SD_ENABLE! You can do this in platform.io by adding `build_flags = -D ELOG_SD_ENABLE`. In arduino IDE you can `#define ELOG_SD_ENABLE` before you include this library
+
 #### SPIFFS (Internal EEPROM) logging
 
 Logging to the internal EEPROM of the ESP32 is as simple as register a loghandle
 
 ```
 #define MYLOG 0
-Logger.registerSpiffs(MYLOG, LOG_LEVEL_DEBUG, "mylog");
-Logger.log(MYLOG, LOG_LEVEL_INFO, "Here is a message");
+Logger.registerSpiffs(MYLOG, ELOG_LEVEL_DEBUG, "mylog");
+Logger.log(MYLOG, ELOG_LEVEL_INFO, "Here is a message");
 ```
 
 Every time the ESP is booted a new directory is created. The folder name is in format 0001 and is increased on every boot. In this example the first logfile is called mylog.001. When the file reaches the size of 100Kb a new file named mylog.002 will be created. If you want another max size of the logfile use:
@@ -149,6 +151,8 @@ When registing the SPIFFS you decide the loglevel that should go to the file sys
 
 The only realistic way of accessing the logfiles is using the "Query command prompt". Read more in this help.
 
+**IMPORTANT**: To use SPIFFS functionality you need to set compiler directive ELOG_SPIFFS_ENABLE! You can do this in platform.io by adding `build_flags = -D ELOG_SPIFFS_ENABLE`. In arduino IDE you can `#define ELOG_SPIFFS_ENABLE` before you include this library
+
 #### Syslog logging
 
 Logging to the an external syslog server is as simple as configuring the syslog host, port and then register a loghandle:
@@ -156,13 +160,15 @@ Logging to the an external syslog server is as simple as configuring the syslog 
 ```
 #define MYLOG 0
 Logger.configureSyslog("192.168.1.20", 514, "esp32"); // syslog host, port and name of the esp32 device host name
-Logger.registerSyslog(MYLOG, LOG_LEVEL_NOTICE, FAC_LOCAL4, "mylog"); // Log facility and app name that is sent to syslog server
+Logger.registerSyslog(MYLOG, ELOG_LEVEL_NOTICE, ELOG_FAC_LOCAL4, "mylog"); // Log facility and app name that is sent to syslog server
 Logger.log(MYLOG, ELOG_LEVEL_ERROR, "Here is an error message, error code: %d", 17);
 ```
 
 When registring the SYSLOG handle you decide the loglevel that should go to the syslog server. In this case it is loglevel equal to or lower than NOTICE
 
-Facilities allowed: FAC_KERN, FAC_USER, FAC_MAIL, FAC_DAEMON, FAC_AUTH, FAC_SYSLOG, FAC_LPR, FAC_NEWS, FAC_UUCP, FAC_CRON, FAC_AUTHPRIV, FAC_FTP, FAC_NTP, FAC_LOG_AUDIT, FAC_LOG_ALERT, FAC_CLOCK_DAEMON, FAC_LOCAL0, FAC_LOCAL1, FAC_LOCAL2, FAC_LOCAL3, FAC_LOCAL4, FAC_LOCAL5, FAC_LOCAL6, FAC_LOCAL7
+Facilities allowed: ELOG_FAC_KERN, ELOG_FAC_USER, ELOG_FAC_MAIL, ELOG_FAC_DAEMON, ELOG_FAC_AUTH, ELOG_FAC_SYSLOG, ELOG_FAC_LPR, ELOG_FAC_NEWS, ELOG_FAC_UUCP, ELOG_FAC_CRON, ELOG_FAC_AUTHPRIV, ELOG_FAC_FTP, ELOG_FAC_NTP, ELOG_FAC_LOG_AUDIT, ELOG_FAC_LOG_ALERT, ELOG_FAC_CLOCK_DAEMON, ELOG_FAC_LOCAL0, ELOG_FAC_LOCAL1, ELOG_FAC_LOCAL2, ELOG_FAC_LOCAL3, ELOG_FAC_LOCAL4, ELOG_FAC_LOCAL5, ELOG_FAC_LOCAL6, ELOG_FAC_LOCAL7
+
+**IMPORTANT**: To use syslog functionality you need to set compiler directive ELOG_SYSLOG_ENABLE! You can do this in platform.io by adding `build_flags = -D ELOG_SYSLOG_ENABLE`. In arduino IDE you can `#define ELOG_SYSLOG_ENABLE` before you include this library
 
 #### Multiple output devices
 
@@ -173,32 +179,32 @@ You can send messages to several output at the same time and filter them differe
 #define OTHERLOG 1
 
 Logger.registerSpiffs(MYLOG, ELOG_LEVEL_ERROR, "mylog");
-Logger.registerSerial(MYLOG, LOG_LEVEL_DEBUG, "tst");
-Logger.registerSerial(OTHERLOG, LOG_LEVEL_DEBUG, "xxx");
+Logger.registerSerial(MYLOG, ELOG_LEVEL_DEBUG, "tst");
+Logger.registerSerial(OTHERLOG, ELOG_LEVEL_DEBUG, "xxx");
 
-Logger.log(MYLOG, LOG_LEVEL_INFO, "Here is a message that goes to serial with service name [TST], but not spiffs");
-Logger.log(OTHERLOG, LOG_LEVEL_INFO, "Here is a message that goes to serial with service name [XXX]");
+Logger.log(MYLOG, ELOG_LEVEL_INFO, "Here is a message that goes to serial with service name [TST], but not spiffs");
+Logger.log(OTHERLOG, ELOG_LEVEL_INFO, "Here is a message that goes to serial with service name [XXX]");
 ```
 
 ## Formatting logfiles
 
 All registrations can configure how the text in the logfile should appear. You can use these log options:
 
-- FLAG_NONE
-- FLAG_NO_TIME (No time)
-- FLAG_NO_SERVICE (No service. eg [XXX])
-- FLAG_NO_LEVEL (No loglevel. eg [INFO])
-- FLAG_TIME_SIMPLE (Format: "000000001" milliseconds since boot)
-- FLAG_TIME_SHORT (Format: "HH:MM:SS")
-- FLAG_TIME_LONG (Format: YYYY-MM-DD HH:MM:SS.mmm (if real time is provided) or ddd:HH:MM:SS.mmm)
-- FLAG_SERVICE_LONG (Format: [XXXXXX] instead of [XXX])
+- ELOG_FLAG_NONE
+- ELOG_FLAG_NO_TIME (No time)
+- ELOG_FLAG_NO_SERVICE (No service. eg [XXX])
+- ELOG_FLAG_NO_LEVEL (No loglevel. eg [INFO])
+- ELOG_FLAG_TIME_SIMPLE (Format: "000000001" milliseconds since boot)
+- ELOG_FLAG_TIME_SHORT (Format: "HH:MM:SS")
+- ELOG_FLAG_TIME_LONG (Format: YYYY-MM-DD HH:MM:SS.mmm (if real time is provided) or ddd:HH:MM:SS.mmm)
+- ELOG_FLAG_SERVICE_LONG (Format: [XXXXXX] instead of [XXX])
 
 Options can be applied to all device registrations except syslog. Examples:
 
 ```
-Logger.registerSerial(MYLOG, LOG_LEVEL_DEBUG, "mylog", Serial2, FLAG_NO_TIME | FLAG_NO_SERVICE);
-Logger.registerSpiffs(MYLOG, ELOG_LEVEL_ERROR, "mylog", FLAG_TIME_SIMPLE);
-Logger.registerSd(INFO, LOG_LEVEL_DEBUG, "mylog", FLAG_NONE);
+Logger.registerSerial(MYLOG, ELOG_LEVEL_DEBUG, "mylog", Serial2, ELOG_FLAG_NO_TIME | ELOG_FLAG_NO_SERVICE);
+Logger.registerSpiffs(MYLOG, ELOG_LEVEL_ERROR, "mylog", ELOG_FLAG_TIME_SIMPLE);
+Logger.registerSd(INFO, ELOG_LEVEL_DEBUG, "mylog", ELOG_FLAG_NONE);
 ```
 
 ## Using real time clock (RTC)
@@ -219,25 +225,19 @@ To make your code shorter the log library has some macros. The following to line
 
 ```
 Logger.log(MYLOG, LOG_LEVEL_INFO, "Here is an info message %d", 1);
-info(MYLOG,"Here is an info message %d", 1)
+Logger.info(MYLOG,"Here is an info message %d", 1)
 ```
 
 Available macros are:
 
-- debug(logId, message, ...)
-- info(logId, message, ...)
-- notice(logId, message, ...)
-- warning(logId, message, ...)
-- error(logId, message, ...)
-- critical(logId, message, ...)
-- alert(logId, message, ...)
-- emergency(logId, message, ...)
-
-You just need to include the macros:
-
-```
-#include <ElogMacros.h>
-```
+- Logger.debug(logId, message, ...)
+- Logger.info(logId, message, ...)
+- Logger.notice(logId, message, ...)
+- Logger.warning(logId, message, ...)
+- Logger.error(logId, message, ...)
+- Logger.critical(logId, message, ...)
+- Logger.alert(logId, message, ...)
+- Logger.emergency(logId, message, ...)
 
 ## Query command prompt
 
@@ -277,16 +277,6 @@ If you want to peek a certain file you can use:
 ```
 SPIFFS:/> peek mylog info
 ```
-
-## Compile options
-
-To save space you can define these compile options:
-
-- LOGGING_SPIFFS_DISABLE
-- LOGGING_SYSLOG_DISABLE
-- LOGGING_SD_DISABLE
-
-Each one saves around 20-40Kb of eeprom. Disable them if you don´t need them. This will leave more space for your own code.
 
 ## Size limits and buffering
 

@@ -114,13 +114,16 @@ void Formatting::getServiceString(char* output, const char* serviceName, const b
         output[0] = '\0'; // return empty string if serviceName is empty
         return;
     }
+
+    bool serviceNameWasEnd = false;
     output[0] = '[';
     for (int i = 0; i < maxLength; i++) {
         output++;
-        if (serviceName[i] != '\0') {
+        if (serviceName[i] != '\0' && !serviceNameWasEnd) {
             output[0] = toupper(serviceName[i]);
         } else {
             output[0] = ' ';
+            serviceNameWasEnd = true;
         }
     }
     output[1] = ']';

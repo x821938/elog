@@ -1,3 +1,4 @@
+#include "ElogConfig.h"
 #ifdef ELOG_SPIFFS_ENABLE
 
 #include <Elog.h>

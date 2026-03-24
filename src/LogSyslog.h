@@ -6,7 +6,7 @@
 #ifdef ELOG_SYSLOG_ENABLE
 
 #include <LogFormat.h>
-#include <WiFi.h>
+#include <WiFiUdp.h>
 
 class LogSyslog {
     struct Setting {

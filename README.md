@@ -15,6 +15,45 @@ The ElogPlus library is a powerful library for logging and monitoring events in 
 - Internal file browser/viewer for looking at logs even when your code is running.
 - A timer to time your code down to the microseconds.
 
+## Enabling optional features (SD, SPIFFS, Syslog, Timer)
+
+SD card, SPIFFS, Syslog, and Timer support are opt-in and must be enabled at compile time. How you do this depends on your build environment.
+
+### Arduino IDE
+
+Edit the file `ElogConfig.h` inside the library's `src/` folder and uncomment the features you need:
+
+```
+// Located at: <Arduino libraries folder>/Elog/src/ElogConfig.h
+
+#define ELOG_SD_ENABLE        // uncomment to enable SD card logging
+#define ELOG_SPIFFS_ENABLE    // uncomment to enable SPIFFS/LittleFS logging
+#define ELOG_SYSLOG_ENABLE    // uncomment to enable Syslog logging
+#define ELOG_TIMER_ENABLE     // uncomment to enable the LogTimer utility
+```
+
+Only uncomment the features you actually use. The Arduino libraries folder is typically:
+- Windows: `Documents\Arduino\libraries\Elog\src\ElogConfig.h`
+- macOS/Linux: `~/Arduino/libraries/Elog/src/ElogConfig.h`
+
+> **Note:** Do _not_ use `#define ELOG_SD_ENABLE` in your sketch before `#include <Elog.h>`. That only affects the sketch's own compilation unit and will result in `undefined reference` linker errors. You must edit `ElogConfig.h` instead.
+
+### PlatformIO
+
+Add the relevant flags to `build_flags` in your `platformio.ini`:
+
+```ini
+build_flags =
+    -D ELOG_SD_ENABLE
+    -D ELOG_SPIFFS_ENABLE
+    -D ELOG_SYSLOG_ENABLE
+    -D ELOG_TIMER_ENABLE
+```
+
+Only include the flags for features you use. You do not need to edit `ElogConfig.h` when using PlatformIO.
+
+---
+
 ## Simple usage example
 
 First of all you need to decide where your logs should go. Most users will start with serial, but you have the options of spiffs(internal EEPROM of the esp32), SD-card and Syslog.
@@ -129,7 +168,7 @@ You could pop out the SD card for reading the files. This logger is pretty resis
 
 You could also use the "Query command prompt". Read more in this help.
 
-**IMPORTANT**: To use SD functionality you need to set compiler directive ELOG_SD_ENABLE! You can do this in platform.io by adding `build_flags = -D ELOG_SD_ENABLE`. In arduino IDE you can `#define ELOG_SD_ENABLE` before you include this library
+**IMPORTANT**: SD card support requires `ELOG_SD_ENABLE` to be enabled at compile time. See [Enabling optional features](#enabling-optional-features-sd-spiffs-syslog-timer) above for how to do this in Arduino IDE and PlatformIO.
 
 #### SPIFFS (Internal EEPROM) logging
 
@@ -151,7 +190,7 @@ When registing the SPIFFS you decide the loglevel that should go to the file sys
 
 The only realistic way of accessing the logfiles is using the "Query command prompt". Read more in this help.
 
-**IMPORTANT**: To use SPIFFS functionality you need to set compiler directive ELOG_SPIFFS_ENABLE! You can do this in platform.io by adding `build_flags = -D ELOG_SPIFFS_ENABLE`. In arduino IDE you can `#define ELOG_SPIFFS_ENABLE` before you include this library
+**IMPORTANT**: SPIFFS support requires `ELOG_SPIFFS_ENABLE` to be enabled at compile time. See [Enabling optional features](#enabling-optional-features-sd-spiffs-syslog-timer) above for how to do this in Arduino IDE and PlatformIO.
 
 #### Syslog logging
 
@@ -168,7 +207,7 @@ When registring the SYSLOG handle you decide the loglevel that should go to the 
 
 Facilities allowed: ELOG_FAC_KERN, ELOG_FAC_USER, ELOG_FAC_MAIL, ELOG_FAC_DAEMON, ELOG_FAC_AUTH, ELOG_FAC_SYSLOG, ELOG_FAC_LPR, ELOG_FAC_NEWS, ELOG_FAC_UUCP, ELOG_FAC_CRON, ELOG_FAC_AUTHPRIV, ELOG_FAC_FTP, ELOG_FAC_NTP, ELOG_FAC_LOG_AUDIT, ELOG_FAC_LOG_ALERT, ELOG_FAC_CLOCK_DAEMON, ELOG_FAC_LOCAL0, ELOG_FAC_LOCAL1, ELOG_FAC_LOCAL2, ELOG_FAC_LOCAL3, ELOG_FAC_LOCAL4, ELOG_FAC_LOCAL5, ELOG_FAC_LOCAL6, ELOG_FAC_LOCAL7
 
-**IMPORTANT**: To use syslog functionality you need to set compiler directive ELOG_SYSLOG_ENABLE! You can do this in platform.io by adding `build_flags = -D ELOG_SYSLOG_ENABLE`. In arduino IDE you can `#define ELOG_SYSLOG_ENABLE` before you include this library
+**IMPORTANT**: Syslog support requires `ELOG_SYSLOG_ENABLE` to be enabled at compile time. See [Enabling optional features](#enabling-optional-features-sd-spiffs-syslog-timer) above for how to do this in Arduino IDE and PlatformIO.
 
 #### Multiple output devices
 

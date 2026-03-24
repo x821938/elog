@@ -4,6 +4,8 @@
 #ifndef ELOG_COMMON_H
 #define ELOG_COMMON_H
 
+#include "ElogConfig.h"
+
 #ifdef ELOG_SPIFFS_ENABLE
 #include <LittleFS.h>
 #endif

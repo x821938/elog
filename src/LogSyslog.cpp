@@ -1,3 +1,4 @@
+#include "ElogConfig.h"
 #ifdef ELOG_SYSLOG_ENABLE
 
 #include <Elog.h>
@@ -118,7 +119,7 @@ void LogSyslog::outputFromBuffer(const LogLineEntry logLineEntry)
     }
 }
 
-/* Write the logline to the syslog server if wifi is connected
+/* Write the logline to the syslog server
  * logLineEntry: the log line entry
  * setting: the syslog setting
  */
@@ -130,36 +131,35 @@ void LogSyslog::write(LogLineEntry logLineEntry, Setting& setting)
     while (true) {
         uint32_t sentBytes = 0;
         int success = 0;
-        if (WiFi.isConnected()) {
-            uint8_t priority = syslogLevel[logLineEntry.logLevel] | (setting.facility << 3);
 
-            uint8_t buffer[256];
-            // Date and time is not included in the syslog message. It is assumed that the syslog server will add it
-            snprintf((char*)buffer, sizeof(buffer), "<%d>%s %s: %s", priority, syslogHostname, setting.appName, logLineEntry.logMessage);
-            int len = strlen((char*)buffer);
+        uint8_t priority = syslogLevel[logLineEntry.logLevel] | (setting.facility << 3);
 
-            // Remove any non-printing characters at the end of the line
-            while (len >= 1 && !isprint(buffer[len - 1])) {
-                len--;
-            }
+        uint8_t buffer[256];
+        // Date and time is not included in the syslog message. It is assumed that the syslog server will add it
+        snprintf((char*)buffer, sizeof(buffer), "<%d>%s %s: %s", priority, syslogHostname, setting.appName, logLineEntry.logMessage);
+        int len = strlen((char*)buffer);
 
-            if (syslogUdp.beginPacket(syslogServer, syslogPort) == 1) {
-                sentBytes = syslogUdp.write(buffer, len);
-                success = syslogUdp.endPacket();
-            }
-
-            if (success && sentBytes == len) {
-                stats.bytesWrittenTotal += len;
-                stats.messagesWrittenTotal++;
-                return;
-            }
+        // Remove any non-printing characters at the end of the line
+        while (len >= 1 && !isprint(buffer[len - 1])) {
+            len--;
         }
 
-        // WiFi is not ready, or sending the log failed
+        if (syslogUdp.beginPacket(syslogServer, syslogPort) == 1) {
+            sentBytes = syslogUdp.write(buffer, len);
+            success = syslogUdp.endPacket();
+        }
+
+        if (success && sentBytes == len) {
+            stats.bytesWrittenTotal += len;
+            stats.messagesWrittenTotal++;
+            return;
+        }
+
+        // Network not ready or sending the log failed
 
         if (!waitIfNotReady || remainingWaitMs == 0) {
             stats.messagesDiscardedTotal++;
-            Logger.logInternal(ELOG_LEVEL_WARNING, "WiFi not connected or could not send syslog message");
+            Logger.logInternal(ELOG_LEVEL_WARNING, "Network not ready or could not send syslog message");
             return;
         }
 

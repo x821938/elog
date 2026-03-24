@@ -7,6 +7,7 @@
  * recording laps, displaying timer information, and formatting time strings.
  */
 
+#include "ElogConfig.h"
 #ifdef ELOG_TIMER_ENABLE
 
 #include <LogTimer.h>

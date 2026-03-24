@@ -1,3 +1,4 @@
+#include "ElogConfig.h"
 #ifdef ELOG_SD_ENABLE
 
 #include <Elog.h>

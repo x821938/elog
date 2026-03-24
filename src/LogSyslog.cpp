@@ -126,6 +126,7 @@ void LogSyslog::write(LogLineEntry logLineEntry, Setting& setting)
 {
     static int const syslogLevel[ELOG_NUM_LOG_LEVELS] = { 6, 0, 1, 2, 3, 4, 5, 6, 7, 7, 7 };
 
+    uint16_t remainingWaitMs = maxWaitMilliseconds;
     while (true) {
         uint32_t sentBytes = 0;
         int success = 0;
@@ -156,18 +157,18 @@ void LogSyslog::write(LogLineEntry logLineEntry, Setting& setting)
 
         // WiFi is not ready, or sending the log failed
 
-        if (!waitIfNotReady || maxWaitMilliseconds == 0) {
+        if (!waitIfNotReady || remainingWaitMs == 0) {
             stats.messagesDiscardedTotal++;
             Logger.logInternal(ELOG_LEVEL_WARNING, "WiFi not connected or could not send syslog message");
             return;
         }
 
         // Wait 250 ms at a time
-        unsigned long delayTime = (maxWaitMilliseconds > 250) ? 250 : maxWaitMilliseconds;
+        unsigned long delayTime = (remainingWaitMs > 250) ? 250 : remainingWaitMs;
         delay(delayTime);
         // It is intentional that after a cumulative delay equal to the configured
         // maxWaitMilliseconds, we stop waiting.
-        maxWaitMilliseconds -= delayTime;
+        remainingWaitMs -= delayTime;
     }
 }
 
@@ -279,6 +280,7 @@ bool LogSyslog::queryCmdPeek(const char* appName, const char* loglevel, const ch
     if (strlen(textFilter) > 0) {
         peekFilter = true;
         strncpy(peekFilterText, textFilter, sizeof(peekFilterText) - 1);
+        peekFilterText[sizeof(peekFilterText) - 1] = '\0';
     }
 
     peekEnabled = true;

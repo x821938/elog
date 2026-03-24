@@ -247,6 +247,7 @@ bool LogSerial::queryCmdPeek(const char* serviceName, const char* loglevel, cons
     if (strlen(textFilter) > 0) {
         peekFilter = true;
         strncpy(peekFilterText, textFilter, sizeof(peekFilterText) - 1);
+        peekFilterText[sizeof(peekFilterText) - 1] = '\0';
     }
 
     peekEnabled = true;

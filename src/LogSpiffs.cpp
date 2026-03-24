@@ -76,7 +76,7 @@ uint8_t LogSpiffs::getLogLevel(const uint8_t logId, const char* fileName)
 {
     for (uint8_t i = 0; i < fileSettingsCount; i++) {
         Setting* setting = &settings[i];
-        if (setting->logId == logId && strcmp(settings->fileName, fileName) == 0) {
+        if (setting->logId == logId && strcmp(setting->fileName, fileName) == 0) {
             return setting->logLevel;
         }
     }
@@ -88,7 +88,7 @@ void LogSpiffs::setLogLevel(const uint8_t logId, const uint8_t loglevel, const c
 {
     for (uint8_t i = 0; i < fileSettingsCount; i++) {
         Setting* setting = &settings[i];
-        if (setting->logId == logId && strcmp(settings->fileName, fileName) == 0) {
+        if (setting->logId == logId && strcmp(setting->fileName, fileName) == 0) {
             setting->logLevel = loglevel;
         }
     }
@@ -98,7 +98,7 @@ uint8_t LogSpiffs::getLastMsgLogLevel(const uint8_t logId, const char* fileName)
 {
     for (uint8_t i = 0; i < fileSettingsCount; i++) {
         Setting* setting = &settings[i];
-        if (setting->logId == logId && strcmp(settings->fileName, fileName) == 0) {
+        if (setting->logId == logId && strcmp(setting->fileName, fileName) == 0) {
             return setting->lastMsgLogLevel;
         }
     }
@@ -394,6 +394,7 @@ void LogSpiffs::queryCmdType(const char* filename)
     File logFile = LittleFS.open(absoluteFilePath, FILE_READ);
     if (!logFile) {
         querySerial->printf("Log file \"%s\" not found\n", filename);
+        return;
     }
     if (logFile.isDirectory()) {
         querySerial->printf("%s is a directory. You can't type a directory\n", filename);
@@ -455,6 +456,7 @@ bool LogSpiffs::queryCmdPeek(const char* filename, const char* loglevel, const c
     if (strlen(textFilter) > 0) {
         peekFilter = true;
         strncpy(peekFilterText, textFilter, sizeof(peekFilterText) - 1);
+        peekFilterText[sizeof(peekFilterText) - 1] = '\0';
     }
 
     peekEnabled = true;

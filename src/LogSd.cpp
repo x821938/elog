@@ -95,7 +95,7 @@ uint8_t LogSD::getLogLevel(const uint8_t logId, const char* fileName)
 {
     for (uint8_t i = 0; i < registeredSdCount; i++) {
         Setting* setting = &settings[i];
-        if (setting->logId == logId && strcmp(settings->fileName, fileName) == 0) {
+        if (setting->logId == logId && strcmp(setting->fileName, fileName) == 0) {
             return setting->logLevel;
         }
     }
@@ -107,7 +107,7 @@ void LogSD::setLogLevel(const uint8_t logId, const uint8_t loglevel, const char*
 {
     for (uint8_t i = 0; i < registeredSdCount; i++) {
         Setting* setting = &settings[i];
-        if (setting->logId == logId && strcmp(settings->fileName, fileName) == 0) {
+        if (setting->logId == logId && strcmp(setting->fileName, fileName) == 0) {
             setting->logLevel = loglevel;
         }
     }
@@ -117,7 +117,7 @@ uint8_t LogSD::getLastMsgLogLevel(const uint8_t logId, const char* fileName)
 {
     for (uint8_t i = 0; i < registeredSdCount; i++) {
         Setting* setting = &settings[i];
-        if (setting->logId == logId && strcmp(settings->fileName, fileName) == 0) {
+        if (setting->logId == logId && strcmp(setting->fileName, fileName) == 0) {
             return setting->lastMsgLogLevel;
         }
     }
@@ -492,6 +492,7 @@ bool LogSD::queryCmdPeek(const char* filename, const char* loglevel, const char*
     if (strlen(textFilter) > 0) {
         peekFilter = true;
         strncpy(peekFilterText, textFilter, sizeof(peekFilterText) - 1);
+        peekFilterText[sizeof(peekFilterText) - 1] = '\0';
     }
 
     peekEnabled = true;

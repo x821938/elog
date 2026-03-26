@@ -16,7 +16,7 @@ void setup()
     Serial.begin(115200);
 
     Logger.configure(50, true); // Logbuffer max 50 lines. Wait if buffer full.
-    timer.configure(5, 50); // 5 timers, 20 laps each
+    timer.configure(5, 50); // 5 timers, 50 laps each
     Logger.registerSerial(LOG_TIMER, ELOG_LEVEL_DEBUG, "TIMER");
     Logger.registerSerial(LOG_TEST, ELOG_LEVEL_ERROR, "OUTPUT", Serial2);
 }

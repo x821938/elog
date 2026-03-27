@@ -1,3 +1,5 @@
 .pio/
+.vscode
 .claude/
 CLAUDE.md
+release.sh

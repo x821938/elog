@@ -1,3 +1,10 @@
+// ============================================================
+// PlatformIO: No special build_flags needed for this example.
+// Serial output works out of the box.
+//
+// Arduino IDE: No changes needed. Serial output is enabled by default.
+// ============================================================
+
 #include <Elog.h>
 #define MYLOG 0
 #define RANDOM 1

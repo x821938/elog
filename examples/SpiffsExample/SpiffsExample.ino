@@ -1,3 +1,12 @@
+// ============================================================
+// PlatformIO: Add this to your platformio.ini:
+//   build_flags = -D ELOG_SPIFFS_ENABLE
+//
+// Arduino IDE: Open the file:
+//   <Arduino libraries folder>/Elog/src/ElogConfig.h
+//   and uncomment the line:  #define ELOG_SPIFFS_ENABLE
+// ============================================================
+
 #include <Elog.h>
 
 // Define the log IDs. These are used to identify the different logfiles

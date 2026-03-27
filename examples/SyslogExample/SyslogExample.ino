@@ -1,3 +1,12 @@
+// ============================================================
+// PlatformIO: Add this to your platformio.ini:
+//   build_flags = -D ELOG_SYSLOG_ENABLE
+//
+// Arduino IDE: Open the file:
+//   <Arduino libraries folder>/Elog/src/ElogConfig.h
+//   and uncomment the line:  #define ELOG_SYSLOG_ENABLE
+// ============================================================
+
 #include "secrets.h" // Create a secrets.h file with your WiFi credentials (define WIFI_SSID and WIFI_PASS)
 #include <Elog.h>
 

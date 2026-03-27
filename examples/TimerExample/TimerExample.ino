@@ -1,3 +1,12 @@
+// ============================================================
+// PlatformIO: Add this to your platformio.ini:
+//   build_flags = -D ELOG_TIMER_ENABLE
+//
+// Arduino IDE: Open the file:
+//   <Arduino libraries folder>/Elog/src/ElogConfig.h
+//   and uncomment the line:  #define ELOG_TIMER_ENABLE
+// ============================================================
+
 #include <Arduino.h>
 #include <Elog.h>
 #include <LogTimer.h>

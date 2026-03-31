@@ -178,7 +178,6 @@ void LogSD::handlePeek(const LogLineEntry logLineEntry, const uint8_t settingInd
 void LogSD::write(LogLineEntry logLineEntry, Setting& setting)
 {
     static char logStamp[LENGTH_OF_LOG_STAMP];
-    uint8_t logId = logLineEntry.logId;
 
     if (sdConfigured && !sdCardPresent) {
         reconnect();
@@ -343,9 +342,10 @@ void LogSD::queryCmdCd(const char* directory)
         strcpy(queryCwd, directory);
     } else {
         if (strlen(queryCwd) > 1) {
-            sprintf(queryCwd, "%s/%s", queryCwd, directory);
+            strlcat(queryCwd, "/", sizeof(queryCwd));
+            strlcat(queryCwd, directory, sizeof(queryCwd));
         } else {
-            sprintf(queryCwd, "/%s", directory);
+            snprintf(queryCwd, sizeof(queryCwd), "/%s", directory);
         }
     }
 
@@ -388,8 +388,8 @@ void LogSD::queryCmdRmdir(const char* path)
         while (file.openNext(&dir, O_READ)) {
             file.getName(name, 20);
             file.close();
-            char path[50];
-            sprintf(path, "%s/%s", absolutePath, name);
+            char path[70];
+            snprintf(path, sizeof(path), "%s/%s", absolutePath, name);
             queryCmdRm(path);
             vTaskDelay(1); // feed the watchdog
         }
@@ -468,7 +468,7 @@ bool LogSD::queryCmdPeek(const char* filename, const char* loglevel, const char*
 {
     peekLoglevel = formatter.getLogLevelFromString(loglevel);
     if (peekLoglevel == ELOG_LEVEL_NOLOG) {
-        querySerial->printf("Invalid loglevel\n\npeek <filename> <loglevel> <filtertext>\nAllowed loglevels are: verbo, trace, debug, info, notic, warn, error, crit, alert, emerg\n", loglevel);
+        querySerial->printf("Invalid loglevel\n\npeek <filename> <loglevel> <filtertext>\nAllowed loglevels are: verbo, trace, debug, info, notic, warn, error, crit, alert, emerg\n");
         return false;
     }
 

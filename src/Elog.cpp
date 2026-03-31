@@ -674,6 +674,8 @@ void Elog::queryHandleSerialInput()
         case QUERY_WAITING_FOR_PEEK_QUIT:
             queryStateWaitPeekQuit(c);
             break;
+        case QUERY_WAITING_FOR_TYPE_CMD:
+            break;
         }
     }
 }

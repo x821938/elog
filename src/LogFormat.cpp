@@ -69,7 +69,7 @@ void Formatting::getTimeRtcString(char* output, const uint32_t milliseconds)
     tv.tv_usec -= (millisSinceStamps % 1000) * 1000;
 
     struct tm* tmstruct = localtime(&tv.tv_sec);
-    sprintf(output, "%04d-%02d-%02d %02d:%02d:%02d.%03d ", (tmstruct->tm_year) + 1900, (tmstruct->tm_mon) + 1, tmstruct->tm_mday, tmstruct->tm_hour, tmstruct->tm_min, tmstruct->tm_sec, tv.tv_usec / 1000);
+    sprintf(output, "%04d-%02d-%02d %02d:%02d:%02d.%03d ", (tmstruct->tm_year) + 1900, (tmstruct->tm_mon) + 1, tmstruct->tm_mday, tmstruct->tm_hour, tmstruct->tm_min, tmstruct->tm_sec, (int)(tv.tv_usec / 1000));
 }
 
 /* Get the time string in the format of ddd:HH:MM:SS.mmm
@@ -196,7 +196,7 @@ void Formatting::getHumanSize(char* output, uint32_t size)
 void Formatting::getTimeStrFromEpoch(char* output, const time_t epoch)
 {
     struct tm* tmstruct = localtime(&epoch);
-    snprintf(output, 20, "%04d-%02d-%02d %02d:%02d:%02d", (tmstruct->tm_year) + 1900, (tmstruct->tm_mon) + 1, tmstruct->tm_mday, tmstruct->tm_hour, tmstruct->tm_min, tmstruct->tm_sec);
+    strftime(output, 25, "%Y-%m-%d %H:%M:%S", tmstruct);
 }
 
 /* Get the human readable uptime (in seconds, minutes, hours, days)

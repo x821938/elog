@@ -83,7 +83,7 @@ private:
     uint8_t registeredSdCount = 0; // number of registered files
 
     char logCwd[20];
-    char queryCwd[20] = SD_LOG_ROOT; // current working directory
+    char queryCwd[64] = SD_LOG_ROOT; // current working directory
 
     bool peekEnabled = false;
     uint8_t peekLoglevel = ELOG_LEVEL_NOLOG;

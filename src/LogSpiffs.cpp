@@ -275,7 +275,7 @@ void LogSpiffs::queryCmdDir(const char* directory)
             querySerial->printf("%s\n", file.name());
         } else {
             time_t t = file.getLastWrite();
-            char time[20];
+            char time[25];
             formatter.getTimeStrFromEpoch(time, t);
             querySerial->printf("%s [%s] (%d bytes)\n", file.name(), time, file.size());
         }

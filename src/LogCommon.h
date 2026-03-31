@@ -13,6 +13,11 @@
 #ifdef ELOG_SD_ENABLE
 #include <SdFatConfig.h>
 #include <SdFat.h>
+// SdFat defines FILE_READ/FILE_WRITE as numeric open-mode flags.
+// Arduino's FS.h later redefines them as string literals ("r"/"w").
+// Undefine here so the redefinition doesn't trigger a compiler warning.
+#undef FILE_READ
+#undef FILE_WRITE
 #endif
 
 struct LogLineEntry {

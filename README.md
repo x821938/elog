@@ -52,6 +52,14 @@ build_flags =
 
 Only include the flags for features you use. You do not need to edit `ElogConfig.h` when using PlatformIO.
 
+> **Note:** When using `ELOG_SD_ENABLE` on ESP32 you will see a harmless compiler warning from the SdFat library: `File not defined because __has_include(FS.h)`. This happens because `FS.h` is present on ESP32 (so SdFat defers the `File` typedef to it) but SdFat warns you that it didn't define `File` itself. To suppress it, add `-D DISABLE_FS_H_WARNING` to your `build_flags`:
+>
+> ```ini
+> build_flags =
+>     -D ELOG_SD_ENABLE
+>     -D DISABLE_FS_H_WARNING
+> ```
+
 ---
 
 ## Simple usage example

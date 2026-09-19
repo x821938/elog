@@ -2,8 +2,8 @@
 #define ELOG_LOGSERIAL_H
 
 #include <Arduino.h>
-#include <LogFormat.h>
-#include <LogCommon.h>
+#include "LogFormat.h"
+#include "LogCommon.h"
 
 using namespace std;
 

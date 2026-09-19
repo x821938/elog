@@ -1,4 +1,4 @@
-#include <LogFormat.h>
+#include "LogFormat.h"
 
 /* Get the log stamp for the log line. The format is [TIME][SERVIC][LOGLEVEL]. It can be customized with flags
  * logTime: the time of the log

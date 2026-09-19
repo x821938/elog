@@ -5,7 +5,7 @@
 
 #ifdef ELOG_SYSLOG_ENABLE
 
-#include <LogFormat.h>
+#include "LogFormat.h"
 #include <WiFiUdp.h>
 
 class LogSyslog {

@@ -1,8 +1,8 @@
 #include "ElogConfig.h"
 #ifdef ELOG_SPIFFS_ENABLE
 
-#include <Elog.h>
-#include <LogSpiffs.h>
+#include "Elog.h"
+#include "LogSpiffs.h"
 
 /* reset the buffer stats
  */
@@ -62,6 +62,7 @@ void LogSpiffs::registerSpiffs(const uint8_t logId, const uint8_t loglevel, cons
     setting->fileName = fileName;
     setting->logLevel = loglevel;
     setting->lastMsgLogLevel = ELOG_LEVEL_NOLOG;
+    setting->isFileDirty = false;
     setting->fileNumber = 0;
     setting->bytesWritten = 0;
     setting->maxLogFileSize = maxLogFileSize;
@@ -119,7 +120,7 @@ void LogSpiffs::outputFromBuffer(const LogLineEntry logLineEntry)
                 setting->lastMsgLogLevel = logLineEntry.logLevel;
                 if (ensureFilesystemConfigured()) {
                     write(logLineEntry, *setting);
-                    allFilesSync();
+                    //allFilesSync();
                 }
             }
             handlePeek(logLineEntry, i); // If peek is enabled from query command
@@ -169,6 +170,7 @@ void LogSpiffs::write(LogLineEntry logLineEntry, Setting& setting)
         bytesWritten = setting.spiffsFileHandle.print(logStamp);
         bytesWritten += setting.spiffsFileHandle.print(logLineEntry.logMessage);
         bytesWritten += setting.spiffsFileHandle.println();
+        setting.isFileDirty = true;
 
         if (bytesWritten == expectedBytes) {
             stats.bytesWrittenTotal += bytesWritten;
@@ -777,19 +779,15 @@ void LogSpiffs::ensureFileSize(Setting& setting)
  */
 void LogSpiffs::allFilesSync()
 {
-    static uint32_t lastSynced = 0;
+    Logger.logInternal(ELOG_LEVEL_INFO, "Syncronizing all SPIFFS logfiles. Writing dirty cache");
 
-    if (millis() - lastSynced > SPIFFS_SYNC_FILES_EVERY) {
-        Logger.logInternal(ELOG_LEVEL_INFO, "Syncronizing all SPIFFS logfiles. Writing dirty cache");
-
-        for (uint8_t i = 0; i < fileSettingsCount; i++) {
-            Setting* setting = &settings[i];
-            if (setting->spiffsFileHandle) {
-                Logger.logInternal(ELOG_LEVEL_DEBUG, "Syncronizing SPIFFS:%s/%s.%03d", currentLogDir, setting->fileName, setting->fileNumber);
-                setting->spiffsFileHandle.flush();
-            }
+    for (uint8_t i = 0; i < fileSettingsCount; i++) {
+        Setting* setting = &settings[i];
+        if (settings->isFileDirty && setting->spiffsFileHandle) {
+            Logger.logInternal(ELOG_LEVEL_DEBUG, "Syncronizing SPIFFS:%s/%s.%03d", currentLogDir, setting->fileName, setting->fileNumber);
+            setting->spiffsFileHandle.flush();
+            setting->isFileDirty = false;
         }
-        lastSynced = millis();
     }
 }
 

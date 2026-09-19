@@ -4,6 +4,8 @@
 #ifndef ELOG_COMMON_H
 #define ELOG_COMMON_H
 
+#include <cstdint>
+#include <Arduino.h>
 #include "ElogConfig.h"
 
 #ifdef ELOG_SPIFFS_ENABLE

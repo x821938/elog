@@ -5,12 +5,11 @@
 
 #ifdef ELOG_SPIFFS_ENABLE
 
-#include <LogFormat.h>
-#include <LogRingBuff.h>
-#include <LogCommon.h>
+#include "LogFormat.h"
+#include "LogRingBuff.h"
+#include "LogCommon.h"
 
 #define SPIFFS_MIN_FREE_SPACE 20000 // 20kB
-#define SPIFFS_SYNC_FILES_EVERY 5000 // 5s
 
 #define SPIFFS_LOGNUMBER_FILE "/lognumber.txt"
 #define SPIFFS_LOG_ROOT "/logs"
@@ -24,6 +23,7 @@ class LogSpiffs {
         uint8_t logLevel;
         uint8_t lastMsgLogLevel;
         uint8_t logFlags;
+        bool isFileDirty;
         File spiffsFileHandle;
         uint8_t fileNumber;
         uint32_t maxLogFileSize;
@@ -97,9 +97,10 @@ private:
     void ensureFreeSpace();
     void ensureFileSize(Setting& setting);
 
-    void allFilesSync();
     void allFilesClose();
     void allFilesOpen();
+public:
+    void allFilesSync();
 };
 
 #else // ELOG_SPIFFS_ENABLE

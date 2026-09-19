@@ -10,8 +10,8 @@
 #include "ElogConfig.h"
 #ifdef ELOG_TIMER_ENABLE
 
-#include <LogTimer.h>
-#include <Elog.h>
+#include "LogTimer.h"
+#include "Elog.h"
 
 /**
  * @brief Gets the instance of the LogTimer class.

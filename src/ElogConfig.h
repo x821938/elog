@@ -20,6 +20,9 @@
 // Uncomment to enable Syslog (UDP) logging
 // #define ELOG_SYSLOG_ENABLE
 
+// Uncomment to enable Callback logging
+// #define ELOG_CALLBACK_ENABLE
+
 // Uncomment to enable the LogTimer utility
 // #define ELOG_TIMER_ENABLE
 

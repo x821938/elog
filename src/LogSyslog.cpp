@@ -1,8 +1,8 @@
 #include "ElogConfig.h"
 #ifdef ELOG_SYSLOG_ENABLE
 
-#include <Elog.h>
-#include <LogSyslog.h>
+#include "Elog.h"
+#include "LogSyslog.h"
 
 void LogSyslog::begin()
 {

@@ -2,12 +2,13 @@
 #define ELOG_H
 
 #include <Arduino.h>
-#include <LogFormat.h>
-#include <LogRingBuff.h>
-#include <LogSd.h>
-#include <LogSerial.h>
-#include <LogSpiffs.h>
-#include <LogSyslog.h>
+#include "LogFormat.h"
+#include "LogRingBuff.h"
+#include "LogSd.h"
+#include "LogSerial.h"
+#include "LogSpiffs.h"
+#include "LogCallback.h"
+#include "LogSyslog.h"
 #include <esp_task_wdt.h>
 
 // From ArduinoLog.h
@@ -23,7 +24,8 @@ class Elog {
         SPIFFS,
         SD,
         SER,
-        SYSLOG
+        SYSLOG,
+        CALLBACK
     };
 
     enum QueryState {
@@ -43,6 +45,7 @@ class Elog {
     friend class LogSerial;
     friend class LogSD;
     friend class LogSyslog;
+    friend class LogCallback;
 
 public:
     // Ensure that the class is a singleton
@@ -81,6 +84,13 @@ public:
     void setSyslogLogLevel(const uint8_t logId, const uint8_t logLevel, const uint8_t facility);
     uint8_t getSyslogLastMsgLogLevel(const uint8_t logId, const uint8_t facility);
 #endif // ELOG_SYSLOG_ENABLE
+#ifdef ELOG_CALLBACK_ENABLE
+    void configureCallback(const uint8_t maxRegistrations = 10);
+    void registerCallback(const uint8_t logId, const uint8_t logLevel, const char* serviceName, LogCallback::callbackFunc_t funcPtr, const uint8_t logFlags = 0);
+    uint8_t getCallbackLogLevel(const uint8_t logId, LogCallback::callbackFunc_t funcPtr);
+    void setCallbackLogLevel(const uint8_t logId, const uint8_t logLevel, LogCallback::callbackFunc_t funcPtr);
+    uint8_t getCallbackLastMsgLogLevel(const uint8_t logId, LogCallback::callbackFunc_t funcPtr);
+#endif // ELOG_CALLBACK_ENABLE
     void configureInternalLogging(Stream& internalLogDevice, uint8_t internalLogLevel = ELOG_LEVEL_ERROR, uint16_t statsEvery = 10000);
     void enableQuery(Stream& serialPort);
     void provideTime(const uint16_t year, const uint8_t month, const uint8_t day, const uint8_t hour, const uint8_t minute, const uint8_t second);
@@ -158,6 +168,7 @@ private:
     LogSerial logSerial;
     LogSD logSD;
     LogSyslog logSyslog;
+    LogCallback logCallback;
     Formatting formatter;
     LogRingBuff<LogLineEntry> ringBuff;
 
@@ -179,6 +190,10 @@ private:
 
     void writerTaskStart();
     static void writerTask(void* parameter);
+#if defined (ELOG_SD_ENABLE) || defined(ELOG_SPIFFS_ENABLE)
+    void syncTaskStart();
+    static void syncTask(void* parameter);
+#endif
     void outputFromBuffer();
     void buffAddLogLine(LogLineEntry& logLineEntry);
     bool mustLog(uint8_t logId, uint8_t logLevel);
@@ -198,6 +213,7 @@ private:
     void queryCmdSd();
     void queryCmdSerial();
     void queryCmdSyslog();
+    void queryCmdCallback();
     void queryCmdDir(const char* directory);
     void queryCmdCd(const char* directory);
     void queryCmdRm(const char* filename);

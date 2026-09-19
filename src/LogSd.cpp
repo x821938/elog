@@ -1,8 +1,8 @@
 #include "ElogConfig.h"
 #ifdef ELOG_SD_ENABLE
 
-#include <Elog.h>
-#include <LogSd.h>
+#include "Elog.h"
+#include "LogSd.h"
 
 SPIClass LogSD::spi;
 

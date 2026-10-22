@@ -147,6 +147,11 @@ static const char* logLevelStrings[ELOG_NUM_LOG_LEVELS] = { "ALWAY", "EMERG", "A
  */
 void Formatting::getLogLevelStringRaw(char* output, const uint8_t logLevel)
 {
+    if (logLevel >= ELOG_NUM_LOG_LEVELS) {
+        strcpy(output, "NOLOG");
+        return;
+    }
+
     strcpy(output, logLevelStrings[logLevel]);
 }
 

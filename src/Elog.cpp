@@ -545,7 +545,8 @@ void Elog::buffAddLogLine(LogLineEntry& logLineEntry)
     } else {
         if (waitIfBufferFull) { // BUFFER FULL - bad, it will just be discarded.
             while (ringBuff.buffIsFull()) { // Get one space in buffer to add the message
-                delayMicroseconds(100);
+                //delayMicroseconds(100);  need to yield to other tasks
+                delay(1);
             }
             ringBuff.buffPush(logLineEntry);
             bufferStats.messagesBuffered++;

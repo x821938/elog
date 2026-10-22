@@ -59,6 +59,8 @@ public:
     uint8_t getSerialLogLevel(const uint8_t logId, Stream& serial = Serial);
     void setSerialLogLevel(const uint8_t logId, const uint8_t logLevel, Stream& serial = Serial);
     uint8_t getSerialLastMsgLogLevel(const uint8_t logId, Stream& serial = Serial);
+    bool getSerialStats(const uint8_t logId, uint32_t& messagesWritten, uint32_t& bytesWritten);
+    bool getSerialStats(Stream& serial, uint32_t& messagesWritten, uint32_t& bytesWritten);
 #ifdef ELOG_SPIFFS_ENABLE
     void configureSpiffs(const uint8_t maxRegistrations = 10);
     void registerSpiffs(const uint8_t logId, const uint8_t logLevel, const char* fileName, const uint8_t logFlags = ELOG_FLAG_NONE, const uint32_t maxLogFileSize = 100000);
@@ -80,6 +82,7 @@ public:
     uint8_t getSyslogLogLevel(const uint8_t logId, const uint8_t facility);
     void setSyslogLogLevel(const uint8_t logId, const uint8_t logLevel, const uint8_t facility);
     uint8_t getSyslogLastMsgLogLevel(const uint8_t logId, const uint8_t facility);
+    void setSyslogServer(const char* server, uint16_t port = 514);
 #endif // ELOG_SYSLOG_ENABLE
     void configureInternalLogging(Stream& internalLogDevice, uint8_t internalLogLevel = ELOG_LEVEL_ERROR, uint16_t statsEvery = 10000);
     void enableQuery(Stream& serialPort);

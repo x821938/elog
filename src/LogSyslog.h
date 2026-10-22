@@ -26,6 +26,7 @@ class LogSyslog {
 public:
     void begin();
     void configure(const char* serverName, const uint16_t port, const char* hostname, bool waitIfNotReady, const uint16_t maxWaitMilliseconds, const uint8_t maxRegistrations);
+    void setServer(const char* serverName, const uint16_t port) { this->syslogServer = serverName; this->syslogPort = port; }
     void registerSyslog(const uint8_t logId, const uint8_t loglevel, const uint8_t facility, const char* appName);
     uint8_t getLogLevel(const uint8_t logId, const uint8_t facility);
     void setLogLevel(const uint8_t logId, const uint8_t loglevel, const uint8_t facility);
@@ -77,6 +78,7 @@ class LogSyslog {
 public:
     void begin() { }
     void configure(const char* serverName, const uint16_t port, const char* hostname, bool waitIfNotReady, const uint16_t maxWaitMilliseconds, const uint8_t maxRegistrations) { }
+    void setServer(const char* serverName, const uint16_t port) { }
     void registerSyslog(const uint8_t logId, const uint8_t loglevel, const uint8_t facility, const char* appName) { }
     void outputFromBuffer(const LogLineEntry logLineEntry) { }
     void handlePeek(const LogLineEntry logLineEntry, const uint8_t settingIndex) { }

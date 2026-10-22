@@ -8,6 +8,11 @@
 using namespace std;
 
 class LogSerial {
+    struct StreamStats {
+        uint32_t bytesWrittenTotal;
+        uint32_t messagesWrittenTotal;
+    };
+
     struct Setting {
         uint8_t logId;
         Stream* serial;
@@ -15,6 +20,7 @@ class LogSerial {
         uint8_t logLevel;
         uint8_t lastMsgLogLevel;
         uint8_t logFlags;
+        StreamStats stats;
     };
 
     struct Stats {
@@ -29,6 +35,8 @@ public:
     uint8_t getLogLevel(const uint8_t logId, Stream& serial);
     void setLogLevel(const uint8_t logId, const uint8_t loglevel, Stream& serial);
     uint8_t getLastMsgLogLevel(const uint8_t logId, Stream& serial);
+    bool getStats(const uint8_t logId, uint32_t& messagesWritten, uint32_t& bytesWritten);
+    bool getStats(Stream& serial, uint32_t& messagesWritten, uint32_t& bytesWritten);
     void outputFromBuffer(const LogLineEntry logLineEntry, bool muteSerialOutput);
     void handlePeek(const LogLineEntry logLineEntry, const uint8_t settingIndex);
     bool mustLog(const uint8_t logId, const uint8_t logLevel);

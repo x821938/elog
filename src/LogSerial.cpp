@@ -48,6 +48,8 @@ void LogSerial::registerSerial(const uint8_t logId, const uint8_t loglevel, cons
     setting->logLevel = loglevel;
     setting->lastMsgLogLevel = ELOG_LEVEL_NOLOG;
     setting->logFlags = logFlags;
+    setting->stats.bytesWrittenTotal = 0;
+    setting->stats.messagesWrittenTotal = 0;
 
     char logLevelStr[10];
     formatter.getLogLevelStringRaw(logLevelStr, loglevel);
@@ -86,6 +88,32 @@ uint8_t LogSerial::getLastMsgLogLevel(const uint8_t logId, Stream& serial)
     }
 
     return ELOG_LEVEL_NOLOG;
+}
+
+bool LogSerial::getStats(const uint8_t logId, uint32_t& messagesWritten, uint32_t& bytesWritten)
+{
+    for (uint8_t i = 0; i < registeredSerialCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->logId == logId) {
+            messagesWritten = setting->stats.messagesWrittenTotal;
+            bytesWritten = setting->stats.bytesWrittenTotal;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool LogSerial::getStats(Stream& serial, uint32_t& messagesWritten, uint32_t& bytesWritten)
+{
+    for (uint8_t i = 0; i < registeredSerialCount; i++) {
+        Setting* setting = &settings[i];
+        if (setting->serial == &serial) {
+            messagesWritten = setting->stats.messagesWrittenTotal;
+            bytesWritten = setting->stats.bytesWrittenTotal;
+            return true;
+        }
+    }
+    return false;
 }
 
 /* Output the logline to the registered serial ports
@@ -176,8 +204,12 @@ void LogSerial::write(LogLineEntry logLineEntry, Setting& setting)
         logSerial = setting.serial;
 
         formatter.getLogStamp(logStamp, logLineEntry.timestamp, logLineEntry.logLevel, service, setting.logFlags);
-        stats.bytesWrittenTotal += logSerial->print(logStamp);
-        stats.bytesWrittenTotal += logSerial->println(logLineEntry.logMessage);
+        size_t bytes = 0;
+        bytes += logSerial->print(logStamp);
+        bytes += logSerial->println(logLineEntry.logMessage);
+        setting.stats.bytesWrittenTotal += bytes;
+        setting.stats.messagesWrittenTotal++;
+        stats.bytesWrittenTotal += bytes;
         stats.messagesWrittenTotal++;
     }
 }
@@ -186,7 +218,13 @@ void LogSerial::write(LogLineEntry logLineEntry, Setting& setting)
  */
 void LogSerial::outputStats()
 {
-    Logger.logInternal(ELOG_LEVEL_INFO, "Serial stats. Messages written: %d, Bytes written: %d", stats.messagesWrittenTotal, stats.bytesWrittenTotal);
+    Logger.logInternal(ELOG_LEVEL_INFO, "Serial total stats. Messages written: %d, Bytes written: %d", stats.messagesWrittenTotal, stats.bytesWrittenTotal);
+    for (uint8_t i = 0; i < registeredSerialCount; i++) {
+        Setting* s = &settings[i];
+        Logger.logInternal(ELOG_LEVEL_INFO, "  Stream [%s] (id=%d): msgs=%d, bytes=%d",
+                           s->serviceName ? s->serviceName : "", s->logId,
+                           s->stats.messagesWrittenTotal, s->stats.bytesWrittenTotal);
+    }
 }
 
 /* Return the number of registrations
@@ -266,7 +304,9 @@ void LogSerial::queryCmdStatus()
     for (uint8_t i = 0; i < registeredSerialCount; i++) {
         char logLevelStr[10];
         formatter.getLogLevelStringRaw(logLevelStr, settings[i].logLevel);
-        querySerial->printf("Serial reg, Service:%s, (ID %d, level %s)\n", settings[i].serviceName, settings[i].logId, logLevelStr);
+        querySerial->printf("Serial reg, Service:%s, (ID %d, level %s): msgs=%d, bytes=%d\n",
+                            settings[i].serviceName, settings[i].logId, logLevelStr,
+                            settings[i].stats.messagesWrittenTotal, settings[i].stats.bytesWrittenTotal);
     }
 }
 

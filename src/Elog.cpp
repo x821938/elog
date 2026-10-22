@@ -223,6 +223,22 @@ uint8_t Elog::getSerialLastMsgLogLevel(const uint8_t logId, Stream& serial)
     return logSerial.getLastMsgLogLevel(logId, serial);
 }
 
+bool Elog::getSerialStats(const uint8_t logId, uint32_t& messagesWritten, uint32_t& bytesWritten)
+{
+    if (!logStarted) {
+        configure();
+    }
+    return logSerial.getStats(logId, messagesWritten, bytesWritten);
+}
+
+bool Elog::getSerialStats(Stream& serial, uint32_t& messagesWritten, uint32_t& bytesWritten)
+{
+    if (!logStarted) {
+        configure();
+    }
+    return logSerial.getStats(serial, messagesWritten, bytesWritten);
+}
+
 #ifdef ELOG_SPIFFS_ENABLE
 /**
  * Configure the SPIFFS. If this is not called by the user a default configuration of 10 will be used
@@ -417,6 +433,14 @@ uint8_t Elog::getSyslogLastMsgLogLevel(const uint8_t logId, const uint8_t facili
     return logSyslog.getLastMsgLogLevel(logId, facility);
 }
 
+void Elog::setSyslogServer(const char* server, uint16_t port)
+{
+    if (!logStarted) {
+        configure();
+    }
+    logSyslog.setServer(server, port);
+}
+
 #endif // ELOG_SYSLOG_ENABLE
 
 /**
@@ -570,6 +594,7 @@ bool Elog::mustLog(uint8_t logId, uint8_t logLevel)
     status |= logSpiffs.mustLog(logId, logLevel);
     status |= logSyslog.mustLog(logId, logLevel);
     status |= (queryState == QUERY_WAITING_FOR_PEEK_QUIT); // if in peek mode, always log
+
     return status;
 }
 

@@ -56,11 +56,13 @@ bool LogRingBuff<T>::buffCreate(size_t capacity)
 template <typename T>
 bool LogRingBuff<T>::buffPush(const T& entry)
 {
+    xSemaphoreTake(semaphore, portMAX_DELAY);
+
     if (buffIsFull()) {
+        xSemaphoreGive(semaphore);
         return false;
     }
 
-    xSemaphoreTake(semaphore, portMAX_DELAY);
     entries[rear] = entry; // Structs copied by assignment
     rear = (rear + 1) % capacity;
     size++;

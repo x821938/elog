@@ -1,10 +1,19 @@
 #include <Elog.h>
 #include <LogSerial.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 void LogSerial::begin()
 {
     stats.bytesWrittenTotal = 0;
     stats.messagesWrittenTotal = 0;
+
+    if (serialMutex == nullptr) {
+        serialMutex = xSemaphoreCreateMutex();
+        if (serialMutex == nullptr) {
+            Logger.logInternal(ELOG_LEVEL_ERROR, "Failed to create mutex");
+        }
+    }
 }
 
 /* Configure the serial port for logging
@@ -125,12 +134,16 @@ void LogSerial::handlePeek(const LogLineEntry logLineEntry, const uint8_t settin
 
                 if (peekFilter) {
                     if (strcasestr(logLineEntry.logMessage, peekFilterText) != NULL) {
+                        if (serialMutex) xSemaphoreTake(serialMutex, portMAX_DELAY);
                         querySerial->print(logStamp);
                         querySerial->println(logLineEntry.logMessage);
+                        if (serialMutex) xSemaphoreGive(serialMutex);
                     }
                 } else {
+                    if (serialMutex) xSemaphoreTake(serialMutex, portMAX_DELAY);
                     querySerial->print(logStamp);
                     querySerial->println(logLineEntry.logMessage);
+                    if (serialMutex) xSemaphoreGive(serialMutex);
                 }
             }
         }
@@ -169,16 +182,22 @@ void LogSerial::write(LogLineEntry logLineEntry, Setting& setting)
         logSerial = logLineEntry.internalLogDevice;
 
         formatter.getLogStamp(logStamp, logLineEntry.timestamp, logLineEntry.logLevel, service, setting.logFlags);
+
+        if (serialMutex) xSemaphoreTake(serialMutex, portMAX_DELAY);
         logSerial->print(logStamp);
         logSerial->println(logLineEntry.logMessage);
+        if (serialMutex) xSemaphoreGive(serialMutex);
     } else {
         service = (char*)setting.serviceName;
         logSerial = setting.serial;
 
         formatter.getLogStamp(logStamp, logLineEntry.timestamp, logLineEntry.logLevel, service, setting.logFlags);
+
+        if (serialMutex) xSemaphoreTake(serialMutex, portMAX_DELAY);
         stats.bytesWrittenTotal += logSerial->print(logStamp);
         stats.bytesWrittenTotal += logSerial->println(logLineEntry.logMessage);
         stats.messagesWrittenTotal++;
+        if (serialMutex) xSemaphoreGive(serialMutex);
     }
 }
 

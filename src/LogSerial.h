@@ -59,6 +59,7 @@ private:
     char peekFilterText[30];
 
     Stream* querySerial = nullptr;
+    SemaphoreHandle_t serialMutex = nullptr;
 
     void write(LogLineEntry logLineEntry, Setting& setting);
 };

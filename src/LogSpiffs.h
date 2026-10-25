@@ -28,6 +28,7 @@ class LogSpiffs {
         uint8_t fileNumber;
         uint32_t maxLogFileSize;
         uint32_t bytesWritten;
+        bool hasDirtyData;
     };
 
     struct Stats {
@@ -48,6 +49,7 @@ public:
     void write(LogLineEntry logLineEntry, Setting& setting);
     bool mustLog(const uint8_t logId, const uint8_t logLevel);
     void outputStats();
+    void allFilesSync();
     void enableQuery(Stream& querySerial);
     void peekStop();
     uint8_t registeredCount();
@@ -97,7 +99,6 @@ private:
     void ensureFreeSpace();
     void ensureFileSize(Setting& setting);
 
-    void allFilesSync();
     void allFilesClose();
     void allFilesOpen();
 };
@@ -111,6 +112,7 @@ public:
     void handlePeek(const LogLineEntry logLineEntry, const uint8_t settingIndex) {};
     bool mustLog(const uint8_t logId, const uint8_t logLevel) { return false; };
     void outputStats() {};
+    void allFilesSync() {};
     void enableQuery(Stream& querySerial) {};
     void peekStop() {};
     uint8_t registeredCount() { return 0; };

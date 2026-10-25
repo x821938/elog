@@ -37,6 +37,7 @@ class LogSD {
         uint8_t fileNumber;
         uint32_t bytesWritten;
         uint32_t maxLogFileSize;
+        bool hasDirtyData;
     };
 
     struct Stats {
@@ -57,6 +58,7 @@ public:
     void write(LogLineEntry logLineEntry, Setting& setting);
     bool mustLog(const uint8_t logId, const uint8_t logLevel);
     void outputStats();
+    void allFilesSync();
     void enableQuery(Stream& querySerial);
     void peekStop();
     uint8_t registeredCount();
@@ -132,7 +134,6 @@ private:
 
     void createLogFileIfClosed(Setting& setting);
     void allFilesClose();
-    void allFilesSync();
 };
 
 #else // ELOG_SD_ENABLE
@@ -145,6 +146,7 @@ public:
     void handlePeek(const LogLineEntry logLineEntry, const uint8_t settingIndex) {};
     bool mustLog(const uint8_t logId, const uint8_t logLevel) { return false; };
     void outputStats() {};
+    void allFilesSync() {};
     void enableQuery(Stream& querySerial) {};
     void peekStop() {};
     uint8_t registeredCount() { return 0; };

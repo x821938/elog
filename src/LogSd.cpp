@@ -83,6 +83,7 @@ void LogSD::registerSd(const uint8_t logId, const uint8_t loglevel, const char* 
     setting->maxLogFileSize = maxLogFileSize;
     setting->fileNumber = 0;
     setting->bytesWritten = 0;
+    setting->hasDirtyData = false;
 
     setting->logFlags = logFlags | ELOG_FLAG_NO_SERVICE; // Servicename makes no sense in a file
     setting->sdFileCreteLastTry = LONG_MIN; // This triggers log file creation immediately
@@ -206,11 +207,11 @@ void LogSD::write(LogLineEntry logLineEntry, Setting& setting)
                     stats.messagesWrittenTotal++;
                     stats.bytesWrittenTotal += bytesWritten;
                     setting.bytesWritten += bytesWritten;
+                    setting.hasDirtyData = true;
                 }
             } else { // If we dont have a valid filehandle we try do create it periodically
                 stats.messagesDiscardedTotal++;
             }
-            allFilesSync(); // Keep files synced to card periodically
             ensureFileSize(setting); // Check if we need to rotate the file
         } else { // If we dont have a valid SD card, we discard the message
             stats.messagesDiscardedTotal++;
@@ -966,11 +967,9 @@ void LogSD::allFilesSync()
 
     if (sdCardPresent) {
         if (millis() - lastSynced > SD_SYNC_FILES_EVERY) {
-            Logger.logInternal(ELOG_LEVEL_INFO, "Syncronizing all SD logfiles. Writing dirty cache");
-
             for (uint8_t i = 0; i < registeredSdCount; i++) {
-                Setting setting = settings[i];
-                if (setting.sdFileHandle->isOpen()) {
+                Setting& setting = settings[i];
+                if (setting.sdFileHandle->isOpen() && setting.hasDirtyData) {
                     char filename[50];
                     getSettingFullFileName(filename, setting);
                     Logger.logInternal(ELOG_LEVEL_DEBUG, "Syncronizing SD:%s", filename);
@@ -980,6 +979,8 @@ void LogSD::allFilesSync()
                     success = setting.sdFileHandle->sync();
                     if (!success) {
                         Logger.logInternal(ELOG_LEVEL_WARNING, "Could not sync file SD:%s.%03d", setting.fileName, setting.fileNumber);
+                    } else {
+                        setting.hasDirtyData = false;
                     }
                 }
             }

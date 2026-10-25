@@ -64,6 +64,7 @@ void LogSpiffs::registerSpiffs(const uint8_t logId, const uint8_t loglevel, cons
     setting->lastMsgLogLevel = ELOG_LEVEL_NOLOG;
     setting->fileNumber = 0;
     setting->bytesWritten = 0;
+    setting->hasDirtyData = false;
     setting->maxLogFileSize = maxLogFileSize;
 
     setting->logFlags = logFlags | ELOG_FLAG_NO_SERVICE; // Servicename makes no sense in a file
@@ -119,7 +120,6 @@ void LogSpiffs::outputFromBuffer(const LogLineEntry logLineEntry)
                 setting->lastMsgLogLevel = logLineEntry.logLevel;
                 if (ensureFilesystemConfigured()) {
                     write(logLineEntry, *setting);
-                    allFilesSync();
                 }
             }
             handlePeek(logLineEntry, i); // If peek is enabled from query command
@@ -174,6 +174,7 @@ void LogSpiffs::write(LogLineEntry logLineEntry, Setting& setting)
             stats.bytesWrittenTotal += bytesWritten;
             stats.messagesWrittenTotal++;
             setting.bytesWritten += bytesWritten;
+            setting.hasDirtyData = true;
         } else {
             stats.messagesDiscardedTotal++;
             Logger.logInternal(ELOG_LEVEL_ERROR, "Failed to write to SPIFFS:%s/%s. Expected writing %d bytes, wrote %d bytes", currentLogDir, setting.fileName, expectedBytes, bytesWritten);
@@ -780,13 +781,12 @@ void LogSpiffs::allFilesSync()
     static uint32_t lastSynced = 0;
 
     if (millis() - lastSynced > SPIFFS_SYNC_FILES_EVERY) {
-        Logger.logInternal(ELOG_LEVEL_INFO, "Syncronizing all SPIFFS logfiles. Writing dirty cache");
-
         for (uint8_t i = 0; i < fileSettingsCount; i++) {
             Setting* setting = &settings[i];
-            if (setting->spiffsFileHandle) {
+            if (setting->spiffsFileHandle && setting->hasDirtyData) {
                 Logger.logInternal(ELOG_LEVEL_DEBUG, "Syncronizing SPIFFS:%s/%s.%03d", currentLogDir, setting->fileName, setting->fileNumber);
                 setting->spiffsFileHandle.flush();
+                setting->hasDirtyData = false;
             }
         }
         lastSynced = millis();

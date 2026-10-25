@@ -503,6 +503,12 @@ void Elog::writerTask(void* parameter)
     while (true) {
         elog.outputStats();
         elog.outputFromBuffer();
+#ifdef ELOG_SPIFFS_ENABLE
+        elog.logSpiffs.allFilesSync();
+#endif
+#ifdef ELOG_SD_ENABLE
+        elog.logSD.allFilesSync();
+#endif
         if (elog.queryEnabled) {
             elog.queryHandleSerialInput();
         }
